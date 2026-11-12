@@ -57,7 +57,7 @@ description: 为分镜或自包含视频单元生成视频。当用户要求生�
 - 把点名视为强制重做，覆盖已有成片。
 - 已有在途任务时不自动 force 重做；等待并读取其 batch 结果，避免对刚完成的目标再次付费提交。
 - 只生成剧本中点名的自包含视频单元；未命中的 ID 记为 `blocked`，带 `generation_unit_not_found`。
-- 调用中断后查询 durable batch；只把未成功的 ID 用 `selected`、`force: false` 重发，已完成项归 `skipped`。
+- 调用中断后查询 durable batch；只有已确认可以重试且仍缺成片的 ID 才用 `selected`、`force: false` 重发。
 - 结果按 `requested / succeeded / failed / blocked` 逐 ID 返回，
   结构与问题码见 `.claude/references/generation-results.md`。
 
@@ -109,6 +109,12 @@ current / stale / missing / blocked）与 workflow 步骤状态互相独立，**
 
 stale 产物照常可预览、可导出、可参与成片，服务端会复用、不会自动重生；是否重做由用户明确决定。
 不自动删除、覆盖或重生任何已付费产物与历史版本。
+
+### Google Flow 提示词拒绝
+
+- `FLOW_PROMPT_SAFETY` 表示 Google Flow 拒绝了该提示词。若 ArcReel 只返回 `generation_task_failed`，以供应商任务的错误码确认，或核对其明确的 `Google Flow rejected the prompt for safety reasons` 回执。先确认原任务已终结、该分镜仍缺成片。
+- 用户已授权重试时，只改失败分镜的 `video_prompt`（参考生视频改对应单元的 `text`）。用 `get_episode_script` 的 revision 调用 `patch_episode_script`。把动作实际改写为清楚、非伤害性的可见行为，保留剧情信息、台词、时长与人物连续性。单纯换同义词不足以修正内容。
+- 先用 `preview: true` 检查该分镜，再只提交该分镜一次，保留已有片段。若新请求仍遭拒绝，报告结果。对于超时、在途或提交结果不明且没有明确拒绝原因的任务，先核对供应商任务与产物。
 
 ## 工作流程
 
