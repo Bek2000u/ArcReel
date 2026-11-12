@@ -321,6 +321,11 @@ def is_episode_complete(videos: ArtifactCount, *, has_edit_timeline: bool) -> bo
     return videos.total > 0 and videos.available >= videos.total and has_edit_timeline
 
 
+class EpisodeArtifactIds(BaseModel):
+    current_ids: list[str] = Field(default_factory=list)
+    stale_ids: list[str] = Field(default_factory=list)
+
+
 class EpisodeSummary(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -333,6 +338,8 @@ class EpisodeSummary(BaseModel):
     duration_seconds: int
     storyboards: ArtifactCount
     videos: ArtifactCount
+    storyboard_ids: EpisodeArtifactIds = Field(default_factory=EpisodeArtifactIds)
+    video_ids: EpisodeArtifactIds = Field(default_factory=EpisodeArtifactIds)
 
 
 class EpisodesSummary(BaseModel):
@@ -955,34 +962,31 @@ class WorkflowStateService:
                     items = (
                         [item for item in raw_items if isinstance(item, dict)] if isinstance(raw_items, list) else []
                     )
-        storyboards = (
-            ArtifactCount.of(
-                self._media_collection(
-                    project_path,
-                    items,
-                    kind,
-                    "storyboard_image",
-                    episode=number,
-                    resolver=resolver,
-                    issues=[],
-                ),
-                total=len(items),
-            )
-            if project.get("generation_mode") == "storyboard"
-            else ArtifactCount.zero()
-        )
-        videos = ArtifactCount.of(
+        uses_storyboards = project.get("generation_mode") == "storyboard"
+        storyboard_collection = (
             self._media_collection(
                 project_path,
                 items,
                 kind,
-                "video_clip",
+                "storyboard_image",
                 episode=number,
                 resolver=resolver,
                 issues=[],
-            ),
-            total=len(items),
+            )
+            if uses_storyboards
+            else _empty_collection()
         )
+        video_collection = self._media_collection(
+            project_path,
+            items,
+            kind,
+            "video_clip",
+            episode=number,
+            resolver=resolver,
+            issues=[],
+        )
+        storyboards = ArtifactCount.of(storyboard_collection, total=len(items) if uses_storyboards else 0)
+        videos = ArtifactCount.of(video_collection, total=len(items))
         return EpisodeSummary(
             episode=number,
             script_status=script_status,
@@ -996,6 +1000,12 @@ class WorkflowStateService:
             duration_seconds=script_duration_total(kind, items) if kind is not None else 0,
             storyboards=storyboards,
             videos=videos,
+            storyboard_ids=EpisodeArtifactIds(
+                current_ids=storyboard_collection["current_ids"], stale_ids=storyboard_collection["stale_ids"]
+            ),
+            video_ids=EpisodeArtifactIds(
+                current_ids=video_collection["current_ids"], stale_ids=video_collection["stale_ids"]
+            ),
         )
 
     def _summary_script(

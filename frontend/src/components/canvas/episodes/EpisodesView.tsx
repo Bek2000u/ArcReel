@@ -7,6 +7,7 @@ import { API } from "@/api";
 import { EPISODE_PLANNING_SLOTS } from "@/actions/generation";
 import { Button } from "@/components/ui/button";
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useProjectsStore } from "@/stores/projects-store";
 import { useActiveResourceIds } from "@/stores/tasks-store";
 import type { EpisodesView as EpisodesViewData } from "@/types";
@@ -16,6 +17,7 @@ import { CreateEpisodeDialog } from "./CreateEpisodeDialog";
 import { EpisodeOutline, type EpisodeMenuActions } from "./EpisodeOutline";
 import { EpisodesHeader } from "./EpisodesHeader";
 import { ExternalChangeNotice } from "./ExternalChangeNotice";
+import { FilmWorkspace } from "./FilmWorkspace";
 import { ManualSplitToolbar } from "./ManualSplitToolbar";
 import { ReplanCandidatePanel } from "./ReplanCandidatePanel";
 import { SourceManuscript } from "./SourceManuscript";
@@ -29,8 +31,10 @@ import { useReplanEpisode } from "./useReplanEpisode";
 import {
   EPISODES_VIEW_CREATE_PARAM,
   EPISODES_VIEW_EPISODE_PARAM,
+  EPISODES_VIEW_TAB_PARAM,
   EPISODES_VIEW_UPLOAD_PARAM,
   episodesViewPath,
+  type EpisodesViewTab,
   type SourceUploadMode,
 } from "./episodes-view-model";
 
@@ -92,11 +96,11 @@ function useEpisodesViewData(projectName: string) {
  * 原文视口顶部所在的集：观察原文里每个集段落，取与视口上沿一带相交的最靠上的一段。
  * 视口上沿落在未切分的原文里时保持上一集。原文重新渲染（数据刷新）后重新挂观察。
  */
-function useCurrentEpisode(scrollRoot: RefObject<HTMLElement | null>, view: EpisodesViewData | null) {
+function useCurrentEpisode(scrollRoot: RefObject<HTMLElement | null>, view: EpisodesViewData | null, active: boolean) {
   const [current, setCurrent] = useState<number | null>(null);
   useEffect(() => {
     const root = scrollRoot.current;
-    if (root === null || view === null || typeof IntersectionObserver === "undefined") return;
+    if (!active || root === null || view === null || typeof IntersectionObserver === "undefined") return;
     const visible = new Set<HTMLElement>();
     const observer = new IntersectionObserver(
       (entries) => {
@@ -117,7 +121,7 @@ function useCurrentEpisode(scrollRoot: RefObject<HTMLElement | null>, view: Epis
     );
     for (const block of root.querySelectorAll<HTMLElement>("[data-episode-block]")) observer.observe(block);
     return () => observer.disconnect();
-  }, [scrollRoot, view]);
+  }, [scrollRoot, view, active]);
   return [current, setCurrent] as const;
 }
 
@@ -132,13 +136,17 @@ export function EpisodesView({ projectName }: { projectName: string }) {
   const { t } = useTranslation("dashboard");
   const { view, error, reload, episodes } = useEpisodesViewData(projectName);
   const search = useSearch();
+  const request = parseViewRequest(search);
+  const requestedTab = new URLSearchParams(search).get(EPISODES_VIEW_TAB_PARAM);
+  const tab: EpisodesViewTab = request?.episode != null || requestedTab === "source" || (!requestedTab && view?.replan)
+    ? "source" : requestedTab === "film" ? "film" : "catalog";
   const [, setLocation] = useLocation();
   const [upload, setUpload] = useState<SourceUploadMode | null>(null);
   /** 新建一集对话框：undefined 为关闭，null 放在末尾，数字为插在这一集之后。 */
   const [createAfter, setCreateAfter] = useState<number | null | undefined>(undefined);
   const deletion = useDeleteEpisode(projectName);
   const manuscriptRef = useRef<HTMLElement>(null);
-  const [current, setCurrent] = useCurrentEpisode(manuscriptRef, view);
+  const [current, setCurrent] = useCurrentEpisode(manuscriptRef, view, tab === "source");
   const episodeHeaders = useRef(new Map<number, HTMLElement>());
   const fileBars = useRef(new Map<string, HTMLElement>());
   const activePlanning = useActiveResourceIds("text_episode_plan", projectName);
@@ -176,11 +184,10 @@ export function EpisodesView({ projectName }: { projectName: string }) {
     // react-doctor-disable-next-line react-doctor/no-adjust-state-on-prop-change -- 要等原文渲染出这一集的标题节点才能滚动，当前集随这次滚动一起更新，与 locate 同一做法
     setCurrent(scrollTarget.episode);
     scrollIntoViewTop(header);
-  }, [view, scrollTarget, setCurrent]);
+  }, [view, tab, scrollTarget, setCurrent]);
 
   // 查询参数只消费一次：渲染时读出并记下已消费的地址，effect 再把参数从地址里去掉，返回或刷新不会再次打开对话框
   const [consumedSearch, setConsumedSearch] = useState<string | null>(null);
-  const request = parseViewRequest(search);
   if (request !== null && search !== consumedSearch) {
     setConsumedSearch(search);
     if (request.upload !== null) setUpload(request.upload);
@@ -192,8 +199,8 @@ export function EpisodesView({ projectName }: { projectName: string }) {
   }
 
   useEffect(() => {
-    if (parseViewRequest(search) !== null) setLocation(episodesViewPath(), { replace: true });
-  }, [search, setLocation]);
+    if (parseViewRequest(search) !== null) setLocation(episodesViewPath({ tab }), { replace: true });
+  }, [search, setLocation, tab]);
 
   const onSplitApplied = useCallback(
     (episode: number | null) => {
@@ -262,60 +269,77 @@ export function EpisodesView({ projectName }: { projectName: string }) {
         episodes={episodes}
         onChanged={reload}
       />
-      <div className="flex min-h-0 flex-1">
-        {!replanPending && episodes.length > 0 ? (
-          <EpisodeOutline
-            view={view}
-            episodes={episodes}
-            current={current}
-            onLocate={locate}
-            onLocateFile={locateFile}
-            actions={menuActions}
-          />
-        ) : null}
-        <section
-          ref={manuscriptRef}
-          // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- 原文是长文本只读区，须能用键盘聚焦后以方向键与翻页键滚动
-          tabIndex={0}
-          aria-label={t("episodes_view_source_label")}
-          className="focus-ring relative min-h-0 min-w-0 flex-1 overflow-y-auto px-6 [scrollbar-gutter:stable]"
-        >
-          <div className="mx-auto max-w-[40em] pt-4">
-            <ExternalChangeNotice projectName={projectName} changes={view.external_changes} onLocate={locateFile} />
-            {view.files.length === 0 ? (
-              <EmptySource hasEpisodes={episodes.length > 0} onUpload={() => setUpload("whole_source")} />
-            ) : (
-              <SourceManuscript
-                projectName={projectName}
+      <Tabs value={tab} onValueChange={(next: EpisodesViewTab) => setLocation(episodesViewPath({ tab: next }))} className="min-h-0 flex-1">
+        <div className="shrink-0 border-b border-border px-4 py-1">
+          <TabsList variant="line" aria-label={t("film_workspace_tabs")}>
+            <TabsTrigger value="catalog">{t("film_workspace_catalog")}</TabsTrigger>
+            <TabsTrigger value="film">{t("film_workspace_film")}</TabsTrigger>
+            <TabsTrigger value="source">{t("film_workspace_source")}</TabsTrigger>
+          </TabsList>
+        </div>
+        <TabsContent value="catalog" className="relative min-h-0 overflow-y-auto [scrollbar-gutter:stable]">
+          <div className="p-4"><FilmWorkspace projectName={projectName} mode="catalog" episodes={episodes} /></div>
+        </TabsContent>
+        <TabsContent value="film" className="relative min-h-0 overflow-y-auto [scrollbar-gutter:stable]">
+          <div className="p-4"><FilmWorkspace projectName={projectName} mode="film" episodes={episodes} /></div>
+        </TabsContent>
+        <TabsContent value="source" className="flex min-h-0">
+          <div className="flex min-h-0 min-w-0 flex-1 text-base">
+            {!replanPending && episodes.length > 0 ? (
+              <EpisodeOutline
                 view={view}
                 episodes={episodes}
-                registerEpisodeHeader={registerEpisodeHeader}
-                registerFileBar={registerFileBar}
-                caret={caret}
-                moving={split.moving}
-                onPlace={split.place}
-                onToggleMoving={split.toggleMoving}
-                compare={compare}
+                current={current}
+                onLocate={locate}
+                onLocateFile={locateFile}
+                actions={menuActions}
               />
-            )}
+            ) : null}
+            <section
+              ref={manuscriptRef}
+              // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- 原文是长文本只读区，须能用键盘聚焦后以方向键与翻页键滚动
+              tabIndex={0}
+              aria-label={t("episodes_view_source_label")}
+              className="focus-ring relative min-h-0 min-w-0 flex-1 overflow-y-auto px-6 [scrollbar-gutter:stable]"
+            >
+              <div className="mx-auto max-w-[40em] pt-4">
+                <ExternalChangeNotice projectName={projectName} changes={view.external_changes} onLocate={locateFile} />
+                {view.files.length === 0 ? (
+                  <EmptySource hasEpisodes={episodes.length > 0} onUpload={() => setUpload("whole_source")} />
+                ) : (
+                  <SourceManuscript
+                    projectName={projectName}
+                    view={view}
+                    episodes={episodes}
+                    registerEpisodeHeader={registerEpisodeHeader}
+                    registerFileBar={registerFileBar}
+                    caret={caret}
+                    moving={split.moving}
+                    onPlace={split.place}
+                    onToggleMoving={split.toggleMoving}
+                    compare={compare}
+                  />
+                )}
+              </div>
+            </section>
+            {view.replan !== null ? (
+              <section
+                aria-label={t("episodes_plan_column_label")}
+                className="relative w-[clamp(320px,30cqw,400px)] shrink-0 overflow-y-auto border-l px-4 py-4"
+              >
+                <ReplanCandidatePanel
+                  projectName={projectName}
+                  view={view}
+                  replan={view.replan}
+                  episodes={episodes}
+                  generating={planning}
+                  onChanged={reload}
+                />
+              </section>
+            ) : null}
           </div>
-        </section>
-        {view.replan !== null ? (
-          <section
-            aria-label={t("episodes_plan_column_label")}
-            className="relative w-[clamp(320px,30cqw,400px)] shrink-0 overflow-y-auto border-l px-4 py-4"
-          >
-            <ReplanCandidatePanel
-              projectName={projectName}
-              view={view}
-              replan={view.replan}
-              episodes={episodes}
-              generating={planning}
-              onChanged={reload}
-            />
-          </section>
-        ) : null}
-      </div>
+        </TabsContent>
+      </Tabs>
       {upload !== null ? (
         <SourceUploadDialog projectName={projectName} initialMode={upload} onClose={() => setUpload(null)} />
       ) : null}

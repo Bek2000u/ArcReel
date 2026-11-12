@@ -136,7 +136,7 @@ function GuideButtonView({
       ? { key: button.label, label: button.label, kind: "nav", intent: { type: "route", path: button.to } }
       : button.kind === "agent"
         ? { key: button.label, label: button.label, kind: "agent", intent: { type: "agent", text: button.prefill } }
-        : { key: button.label, label: button.label, kind: "ai", intent: { type: "route", path: episodesViewPath() } };
+        : { key: button.label, label: button.label, kind: "ai", intent: { type: "route", path: episodesViewPath({ tab: "source" }) } };
   const planEpisodes = async () => {
     if (EPISODE_PLANNING_SLOTS.some((slot) => isResourceBusy("text_episode_plan", projectName, slot))) {
       useAppStore.getState().pushToast(t("dashboard:episode_planning_busy"), "error");
@@ -145,7 +145,7 @@ function GuideButtonView({
     setSubmitting(true);
     try {
       await enqueueEpisodePlanning(projectName, instruction.trim() || null);
-      onNavigate(episodesViewPath());
+      onNavigate(episodesViewPath({ tab: "source" }));
     } catch (err) {
       useAppStore.getState().pushToast(errMsg(err), "error");
     } finally {

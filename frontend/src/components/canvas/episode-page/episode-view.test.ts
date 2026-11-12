@@ -20,11 +20,12 @@ const SCRIPTED: EpisodeViewFacts = {
 };
 
 describe("episodeViewTabs", () => {
-  it("lists plan, grid, board and edit for a scripted grid episode", () => {
+  it("lists plan, grid, board, relationships and edit for a scripted grid episode", () => {
     expect(episodeViewTabs({ ...SCRIPTED, grid: true })).toEqual([
       { view: "plan", disabled: false },
       { view: "grid", disabled: false },
       { view: "board", disabled: false },
+      { view: "relationships", disabled: false },
       { view: "edit", disabled: false },
     ]);
   });
@@ -52,7 +53,7 @@ describe("episodeViewTabs", () => {
   });
 
   it("gives ad projects the story setting first and no plan view, and demo projects no edit view", () => {
-    expect(episodeViewTabs({ ...SCRIPTED, isAd: true }).map((tab) => tab.view)).toEqual(["setting", "board", "edit"]);
+    expect(episodeViewTabs({ ...SCRIPTED, isAd: true }).map((tab) => tab.view)).toEqual(["setting", "board", "relationships", "edit"]);
     expect(episodeViewTabs({ ...SCRIPTED, isAd: true, hasScript: false, hasDraft: false })).toEqual([
       { view: "setting", disabled: false },
       { view: "board", disabled: false },
@@ -71,6 +72,8 @@ describe("resolveEpisodeView", () => {
 
   it("honours an available view and falls back from unknown or disabled ones", () => {
     expect(resolveEpisodeView("edit", SCRIPTED)).toBe("edit");
+    expect(resolveEpisodeView("relationships", SCRIPTED)).toBe("relationships");
+    expect(resolveEpisodeView("relationships", { ...SCRIPTED, hasScript: false })).toBe("plan");
     expect(resolveEpisodeView("grid", SCRIPTED)).toBe("board");
     expect(resolveEpisodeView("nonsense", SCRIPTED)).toBe("board");
     expect(resolveEpisodeView(null, SCRIPTED)).toBe("board");

@@ -251,6 +251,7 @@ updates:
           - "wouter"
           - "zustand"
           - "eventsource-parser"
+          - "@xyflow/react"
         update-types:
           - "minor"
           - "patch"

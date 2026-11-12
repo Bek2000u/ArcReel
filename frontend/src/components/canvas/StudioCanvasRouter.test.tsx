@@ -645,6 +645,8 @@ describe("StudioCanvasRouter", () => {
     const user = userEvent.setup();
     act(() => storyboard.focus());
     await user.keyboard("{ArrowRight}");
+    expect(screen.getByRole("tab", { name: "关系" })).toHaveFocus();
+    await user.keyboard("{ArrowRight}");
     const edit = screen.getByRole("tab", { name: "剪辑" });
     expect(edit).toHaveFocus();
     expect(storyboard).toHaveAttribute("aria-selected", "true");

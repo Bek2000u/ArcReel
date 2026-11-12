@@ -105,6 +105,11 @@ export interface ArtifactCount {
   stale: number;
 }
 
+export interface EpisodeArtifactIds {
+  current_ids: string[];
+  stale_ids: string[];
+}
+
 /** Project summary projection, injected at read time by WorkflowStateService */
 export interface ProjectStatus {
   /** Schema migration (artifact backfill included) failed; generation is closed until repaired */
@@ -176,6 +181,8 @@ export interface EpisodeMeta {
   duration_seconds?: number;
   storyboards?: ArtifactCount;
   videos?: ArtifactCount;
+  storyboard_ids?: EpisodeArtifactIds;
+  video_ids?: EpisodeArtifactIds;
 }
 
 /** 角色声音绑定方式；与后端 `lib.speech.character_voice.CharacterVoiceBinding` 一一对应，取值增减须两侧同步。 */

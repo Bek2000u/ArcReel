@@ -69,7 +69,7 @@ export function projectNextGuide(
       title: t("dashboard:guide_planning_running_title"),
       detail: t("dashboard:guide_planning_running_detail"),
       instruction: false,
-      primary: [{ kind: "nav", label: t("dashboard:guide_view_planning_progress"), to: episodesViewPath() }],
+      primary: [{ kind: "nav", label: t("dashboard:guide_view_planning_progress"), to: episodesViewPath({ tab: "source" }) }],
       alternatives: [],
       episodeId: null,
     };

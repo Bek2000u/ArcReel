@@ -43,20 +43,24 @@ function makeProjectData(overrides: Partial<ProjectData> = {}): ProjectData {
 
 const EMPTY_PROJECT: Partial<ProjectData> = { overview: undefined, episodes: [], whole_source_files: [] };
 
-function withRouter(children: ReactNode, location = memoryLocation({ path: "/", record: true })) {
+function withRouter(children: ReactNode, location = memoryLocation({ path: "/?tab=about", record: true })) {
   return (
-    <Router hook={location.hook}>
+    <Router hook={location.hook} searchHook={location.searchHook}>
       <LeaveGuardProvider>{children}</LeaveGuardProvider>
     </Router>
   );
 }
 
-function renderOverview(props: Partial<Parameters<typeof OverviewCanvas>[0]> = {}) {
-  const location = memoryLocation({ path: "/", record: true });
+function renderOverview(props: Partial<Parameters<typeof OverviewCanvas>[0]> = {}, tab: "summary" | "about" = "summary") {
+  const location = memoryLocation({ path: tab === "about" ? "/?tab=about" : "/", record: true });
   const element = (next: Partial<Parameters<typeof OverviewCanvas>[0]>) =>
     withRouter(<OverviewCanvas projectName="demo" projectData={makeProjectData()} {...next} />, location);
   const view = render(element(props));
   return { ...view, location, rerender: (next: Partial<Parameters<typeof OverviewCanvas>[0]>) => view.rerender(element(next)) };
+}
+
+function renderAbout(props: Partial<Parameters<typeof OverviewCanvas>[0]> = {}) {
+  return renderOverview(props, "about");
 }
 
 function StoreOverview() {
@@ -96,7 +100,8 @@ describe("OverviewCanvas", () => {
     renderOverview();
 
     expect(screen.getByRole("heading", { level: 1, name: "Demo" })).toBeInTheDocument();
-    expect(screen.getByText("剧情演绎 · 竖屏 9:16 · 2 集 · 脚本时长 1:30")).toBeInTheDocument();
+    expect(screen.getByText("9:16")).toBeInTheDocument();
+    expect(screen.getByText(/脚本时长 1分钟 30秒/)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "项目设置" })).toHaveAttribute("href", "/app/projects/demo/settings");
   });
 
@@ -110,7 +115,7 @@ describe("OverviewCanvas", () => {
       }),
     });
 
-    expect(screen.getByText("剧情演绎 · 竖屏 9:16 · 2 集 · 脚本时长 2:00")).toBeInTheDocument();
+    expect(screen.getByText(/脚本时长 2分钟/)).toBeInTheDocument();
   });
 
   it("links each asset kind to its gallery and appends the outdated count", () => {
@@ -175,7 +180,7 @@ describe("OverviewCanvas", () => {
     expect(screen.getByText(/本机没有这个项目的生成记录/)).toBeInTheDocument();
   });
 
-  it("explains unpriced estimates and calls and links each custom model to its price", () => {
+  it("explains unpriced estimates and calls and links each custom model to its price", async () => {
     const relayImage = { call_type: "image", provider: "custom-3", provider_name: "Relay", model: "img" } as const;
     setCost(
       "demo",
@@ -190,6 +195,8 @@ describe("OverviewCanvas", () => {
     // 全部预估都没有价格时写「—」；部分调用没有价格时仍显示已计价的金额
     expect(screen.getByText("预估 —")).toBeInTheDocument();
     expect(screen.getByText("已花 $1.00")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "1 个模型未定价" }));
+    await screen.findByRole("dialog", { name: "费用明细" });
     expect(screen.getByText("有 2 项预估的模型没有价格，未计入预估。")).toBeInTheDocument();
     expect(screen.getByText("有 1 次调用的模型没有价格，未计入已花。")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Relay / img" })).toHaveAttribute(
@@ -217,7 +224,7 @@ describe("OverviewCanvas", () => {
     );
     renderOverview();
 
-    await user.click(screen.getByRole("button", { name: "明细" }));
+    await user.click(screen.getByRole("button", { name: "3 个模型未定价" }));
     const popover = await screen.findByRole("dialog", { name: "费用明细" });
     // 按预估、已花的列序取同名行的值；某列没有这一行时不出现
     const values = (label: string) =>
@@ -251,7 +258,7 @@ describe("OverviewCanvas", () => {
   it("saves the four story fields together, trimmed", async () => {
     const user = userEvent.setup();
     const update = vi.spyOn(API, "updateOverview").mockResolvedValue({ success: true });
-    renderOverview();
+    renderAbout();
 
     const genre = screen.getByRole("textbox", { name: "类型" });
     await user.clear(genre);
@@ -270,7 +277,7 @@ describe("OverviewCanvas", () => {
 
   it("intercepts leaving the overview while the story setting has unsaved changes", async () => {
     const user = userEvent.setup();
-    const { location } = renderOverview({
+    const { location } = renderAbout({
       projectData: makeProjectData({
         status: {
           needs_repair: false,
@@ -283,16 +290,16 @@ describe("OverviewCanvas", () => {
     });
 
     await user.type(screen.getByRole("textbox", { name: "梗概" }), " more");
-    await user.click(screen.getByRole("link", { name: /角色/ }));
+    await user.click(screen.getByRole("tab", { name: "摘要" }));
 
     expect(await screen.findByRole("alertdialog", { name: "有未保存的修改" })).toBeInTheDocument();
-    expect(location.history.at(-1)).toBe("/");
+    expect(location.history.at(-1)).toBe("/?tab=about");
   });
 
   it("asks before regenerating and names the unsaved changes that will be discarded", async () => {
     const user = userEvent.setup();
     const generate = vi.spyOn(API, "generateOverview").mockReturnValue(new Promise(() => {}));
-    renderOverview({ projectData: makeProjectData({ whole_source_files: [{ source_file: "source/novel.txt" }] }) });
+    renderAbout({ projectData: makeProjectData({ whole_source_files: [{ source_file: "source/novel.txt" }] }) });
 
     const synopsis = screen.getByRole("textbox", { name: "梗概" });
     await user.type(synopsis, " draft");
@@ -316,7 +323,7 @@ describe("OverviewCanvas", () => {
   it("generates from the source without asking when the story setting is still empty", async () => {
     const user = userEvent.setup();
     const generate = vi.spyOn(API, "generateOverview").mockResolvedValue({ success: true, overview: {} as never });
-    renderOverview({
+    renderAbout({
       projectData: makeProjectData({ ...EMPTY_PROJECT, whole_source_files: [{ source_file: "source/novel.txt" }] }),
     });
 
@@ -365,7 +372,7 @@ describe("OverviewCanvas", () => {
         422,
       ),
     );
-    renderOverview({
+    renderAbout({
       projectData: makeProjectData({ ...EMPTY_PROJECT, whole_source_files: [{ source_file: "source/novel.txt" }] }),
     });
 
@@ -381,7 +388,7 @@ describe("OverviewCanvas", () => {
     const user = userEvent.setup();
     vi.spyOn(API, "generateOverview").mockResolvedValue({ success: true, overview: {} as never });
     vi.spyOn(API, "getProject").mockRejectedValue(new Error("offline"));
-    renderOverview({
+    renderAbout({
       projectData: makeProjectData({ ...EMPTY_PROJECT, whole_source_files: [{ source_file: "source/novel.txt" }] }),
     });
 
@@ -643,7 +650,8 @@ describe("OverviewCanvas", () => {
         }),
       });
 
-      expect(screen.getByText("广告/短片 · 竖屏 9:16")).toBeInTheDocument();
+      expect(screen.getByText("广告/短片", { exact: true })).toBeInTheDocument();
+      expect(screen.getByText("9:16", { exact: true })).toBeInTheDocument();
       expect(screen.getByRole("link", { name: "商品 0/1" })).toHaveAttribute("href", "/products");
     });
 

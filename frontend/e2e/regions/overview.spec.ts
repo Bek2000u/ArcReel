@@ -8,6 +8,7 @@ import { expect, type ApiOverrides } from "../support/test.ts";
 
 // 项目概览：单列限宽的设定页（页头、资产完成度与费用两行、故事设定），以及空项目的欢迎页。
 const OVERVIEW_PATH = "/app/projects/demo";
+const ABOUT_PATH = `${OVERVIEW_PATH}?tab=about`;
 const PROJECT = "GET /api/v1/projects/demo";
 // 项目事件流是 SSE，没有录制；按不可重试的状态拒绝，页面停在录制的项目数据上。
 const EVENT_STREAM: ApiOverrides = {
@@ -118,7 +119,7 @@ const SOURCE_ONLY_PROJECT: ApiOverrides = {
   ...withProject({ overview: null, whole_source_files: [{ source_file: "source/novel.txt" }] }),
 };
 
-const storySetting = (page: Page) => page.getByRole("region", { name: "故事设定" });
+const storySetting = (page: Page) => page.getByRole("region", { name: "项目设定" });
 
 /** 紧凑档的 Agent 面板默认展开并盖住画布右侧，先收起，内容列与画布右侧的操作才完整可见。 */
 async function collapseAgentPanel(page: Page) {
@@ -142,7 +143,7 @@ async function overviewReady(page: Page) {
 defineRegionScenarios("项目概览", [
   {
     name: "录制的演示项目：页头元信息、资产与费用两行、空的故事设定",
-    path: OVERVIEW_PATH,
+    path: ABOUT_PATH,
     api: EVENT_STREAM,
     ready: overviewReady,
     act: async (page) => {
@@ -162,12 +163,11 @@ defineRegionScenarios("项目概览", [
   },
   {
     name: "长文本故事设定与多条资产过期：字段随内容撑高，由画布滚动到底",
-    path: OVERVIEW_PATH,
+    path: ABOUT_PATH,
     api: LONG_PROJECT,
     ready: overviewReady,
     act: async (page) => {
       await collapseAgentPanel(page);
-      await expect(page.getByRole("link", { name: "道具 210/210 · 23 过期" })).toBeVisible();
       const world = storySetting(page).getByRole("textbox", { name: "世界观" });
       await world.scrollIntoViewIfNeeded();
       await expect(world).toBeInViewport();
@@ -177,7 +177,7 @@ defineRegionScenarios("项目概览", [
     name: "费用明细：多币种与历史支出在弹层里分两列，底部链接到使用记录",
     path: OVERVIEW_PATH,
     api: LONG_PROJECT,
-    ready: overviewReady,
+    ready: async (page) => { await page.getByRole("button", { name: "明细" }).waitFor(); },
     act: async (page) => {
       await collapseAgentPanel(page);
       await page.getByRole("button", { name: "明细" }).click();
@@ -191,10 +191,11 @@ defineRegionScenarios("项目概览", [
     name: "费用拿不到完整数字：说明原因，列出没有价格的模型并链接到设置价格",
     path: OVERVIEW_PATH,
     api: UNPRICED_PROJECT,
-    ready: overviewReady,
+    ready: async (page) => { await page.getByRole("button", { name: "6 个模型未定价" }).waitFor(); },
     act: async (page) => {
       await collapseAgentPanel(page);
       await expect(page.getByText("已花 —")).toBeVisible();
+      await page.getByRole("button", { name: "6 个模型未定价" }).click();
       await expect(page.getByText(/本机没有这个项目的生成记录/)).toBeVisible();
       const lastModel = page.getByRole("link", { name: new RegExp(UNPRICED_MODELS[5].model) });
       await expect(lastModel).toHaveAttribute(
@@ -206,12 +207,12 @@ defineRegionScenarios("项目概览", [
     },
     screenshot: {
       name: "overview-cost-unpriced",
-      target: (page) => page.getByText("设置价格：").locator("xpath=../../.."),
+      target: (page) => page.getByRole("dialog", { name: "费用明细" }),
     },
   },
   {
     name: "故事设定有修改时下方出现未保存提示条",
-    path: OVERVIEW_PATH,
+    path: ABOUT_PATH,
     api: LONG_PROJECT,
     ready: overviewReady,
     act: async (page) => {
@@ -225,7 +226,7 @@ defineRegionScenarios("项目概览", [
   },
   {
     name: "有未保存修改时从原文重新生成：确认框说明修改会丢失",
-    path: OVERVIEW_PATH,
+    path: ABOUT_PATH,
     api: LONG_PROJECT,
     ready: overviewReady,
     act: async (page) => {
@@ -239,7 +240,7 @@ defineRegionScenarios("项目概览", [
   },
   {
     name: "从原文生成时故事设定区显示骨架与「正在读取原文…」",
-    path: OVERVIEW_PATH,
+    path: ABOUT_PATH,
     api: SOURCE_ONLY_PROJECT,
     ready: overviewReady,
     act: async (page) => {

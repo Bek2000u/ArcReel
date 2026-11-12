@@ -28,6 +28,14 @@
             "total": 0,
             "available": 0,
             "stale": 0
+          },
+          "storyboard_ids": {
+            "current_ids": [],
+            "stale_ids": []
+          },
+          "video_ids": {
+            "current_ids": [],
+            "stale_ids": []
           }
         }
       ],

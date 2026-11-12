@@ -1,9 +1,15 @@
 import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { useSearchParams } from "wouter";
 
 import { SourceUploadDialog, type SourceUploadResult } from "@/components/canvas/episodes/SourceUploadDialog";
+import { LazyBoundary } from "@/components/shared/LazyBoundary";
+import { useConfirmLeave } from "@/components/shared/edit-unit/LeaveGuard";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCostStore } from "@/stores/cost-store";
 import { useOverviewGenerateStore } from "@/stores/overview-generate-store";
 import type { ProjectData, ProjectOverview } from "@/types";
+import { lazyNamed } from "@/utils/lazy-component";
 
 import { AdBrief } from "./AdBrief";
 import { AdProducts } from "./AdProducts";
@@ -11,9 +17,12 @@ import { AssetProgressLine } from "./AssetProgressLine";
 import { CostLine } from "./CostLine";
 import { HandoffTip } from "./HandoffTip";
 import { OverviewHeader } from "./OverviewHeader";
+import { ProductionProgress } from "./ProductionProgress";
 import { StorySetting } from "./StorySetting";
 import { useHandoffTipStore } from "./useHandoffTip";
 import { WelcomeCanvas } from "./WelcomeCanvas";
+
+const WorkflowGuide = lazyNamed(() => import("./WorkflowGuide"), "WorkflowGuide");
 
 interface OverviewCanvasProps {
   projectName: string;
@@ -32,6 +41,9 @@ function hasStorySetting(overview: ProjectOverview | undefined): boolean {
  * 广告项目没有初始化页：概览常驻「创作灵感」与「商品」区承担首次录入，故事设定在视频页的「故事设定」tab。
  */
 export function OverviewCanvas({ projectName, projectData, readOnly = false }: OverviewCanvasProps) {
+  const { t } = useTranslation("dashboard");
+  const [params, setParams] = useSearchParams();
+  const confirmLeave = useConfirmLeave();
   const isAd = projectData?.content_mode === "ad";
   const debouncedFetch = useCostStore((s) => s.debouncedFetch);
 
@@ -57,9 +69,12 @@ export function OverviewCanvas({ projectName, projectData, readOnly = false }: O
   const handleUploaded = useCallback(
     (result: SourceUploadResult) => {
       // 第一次放进整本源文时就地读取原文；只登记了逐集原文时不生成
-      if (result.wholeSourceFiles.length > 0) runGenerate();
+      if (result.wholeSourceFiles.length > 0) {
+        setParams((next) => { next.set("tab", "about"); return next; }, { replace: true });
+        runGenerate();
+      }
     },
-    [runGenerate],
+    [runGenerate, setParams],
   );
 
   // 交接提示：本次会话内故事设定由空变为有内容时触发一次；只读态与广告项目不触发。
@@ -79,51 +94,95 @@ export function OverviewCanvas({ projectName, projectData, readOnly = false }: O
   const hasWholeSource = (projectData.whole_source_files?.length ?? 0) > 0;
   const emptyProject =
     !isAd && !hasStorySetting(projectData.overview) && (projectData.episodes?.length ?? 0) === 0 && !hasWholeSource;
-  const showWelcome = !readOnly && !generating && (emptyProject || uploadFiles !== null);
+  const requestedTab = params.get("tab");
+  const showWelcome = !readOnly && !generating && (uploadFiles !== null || (emptyProject && requestedTab !== "guide"));
+  const about = (
+    <StorySetting
+      key={projectName}
+      projectName={projectName}
+      overview={projectData.overview}
+      readOnly={readOnly}
+      title={readOnly ? undefined : t("overview_bible")}
+      canGenerate={hasWholeSource || hasStorySetting(projectData.overview)}
+      generating={generating}
+      generateError={generateError}
+      onGenerate={runGenerate}
+    />
+  );
+  const projectTab = requestedTab === "guide" ? "guide" : requestedTab === "about" || (!requestedTab && generating) ? "about" : "summary";
+  const summary = (
+    <div className="flex flex-col gap-4">
+      {!readOnly && <ProductionProgress data={projectData} />}
+      <div className="grid gap-3 @2xl/canvas:grid-cols-2">
+        {projectData.status?.assets && (
+          <section className="min-w-0 space-y-1.5 border-t border-border pt-2.5">
+            <h2 className="text-sm font-medium">{t("overview_materials")}</h2>
+            <AssetProgressLine data={projectData} />
+          </section>
+        )}
+        <section className="min-w-0 space-y-1.5 border-t border-border pt-2.5">
+          <h2 className="text-sm font-medium">{t("overview_cost_label")}</h2>
+          <CostLine projectName={projectName} readOnly={readOnly} />
+        </section>
+      </div>
+    </div>
+  );
 
   return (
     <div className="relative flex min-h-0 flex-1 flex-col overflow-y-auto p-6 [scrollbar-gutter:stable] @3xl/canvas:p-8">
       {showWelcome ? (
-        <WelcomeCanvas
-          projectTitle={projectData.title}
-          onSelectFiles={(files) => setUpload({ projectName, files })}
-        />
+        <>
+          <WelcomeCanvas projectTitle={projectData.title} onSelectFiles={(files) => setUpload({ projectName, files })} />
+          <button
+            type="button"
+            className="focus-ring mx-auto mt-3 rounded-sm text-sm text-primary hover:underline"
+            onClick={() => setParams((next) => { next.set("tab", "guide"); return next; })}
+          >
+            {t("workflow_guide_tab")}
+          </button>
+        </>
       ) : (
-        <div className="flex w-full max-w-190 shrink-0 flex-col gap-6">
-          <div className="flex flex-col gap-3">
-            <OverviewHeader projectName={projectName} data={projectData} readOnly={readOnly} />
-            <div className="flex flex-col gap-1.5">
-              <AssetProgressLine data={projectData} />
-              <CostLine projectName={projectName} readOnly={readOnly} />
+        <div className="flex w-full max-w-190 min-w-0 shrink-0 flex-col gap-4">
+          <OverviewHeader projectName={projectName} data={projectData} readOnly={readOnly} />
+          {isAd || readOnly ? (
+            <div id="project-input" className="flex flex-col gap-6">
+              {summary}
+              {isAd ? (
+                <>
+                  <AdBrief
+                    key={projectName}
+                    projectName={projectName}
+                    brief={projectData.brief}
+                    targetDuration={projectData.target_duration}
+                    readOnly={readOnly}
+                  />
+                  <AdProducts
+                    key={`${projectName}:products`}
+                    projectName={projectName}
+                    products={projectData.products}
+                    readOnly={readOnly}
+                  />
+                </>
+              ) : about}
             </div>
-          </div>
-          {isAd ? (
-            <>
-              <AdBrief
-                key={projectName}
-                projectName={projectName}
-                brief={projectData.brief}
-                targetDuration={projectData.target_duration}
-                readOnly={readOnly}
-              />
-              <AdProducts
-                key={`${projectName}:products`}
-                projectName={projectName}
-                products={projectData.products}
-                readOnly={readOnly}
-              />
-            </>
           ) : (
-            <StorySetting
-              key={projectName}
-              projectName={projectName}
-              overview={projectData.overview}
-              readOnly={readOnly}
-              canGenerate={hasWholeSource || hasStorySetting(projectData.overview)}
-              generating={generating}
-              generateError={generateError}
-              onGenerate={runGenerate}
-            />
+            <Tabs value={projectTab} onValueChange={(value) => {
+              if (value === projectTab) return;
+              confirmLeave(() => setParams((next) => { next.set("tab", String(value)); return next; }));
+            }}>
+              <div className="mb-2 border-b border-border">
+                <TabsList variant="line" aria-label={t("overview_tabs")}>
+                  <TabsTrigger value="summary">{t("overview_tab_summary")}</TabsTrigger>
+                  <TabsTrigger value="about">{t("overview_tab_about")}</TabsTrigger>
+                  <TabsTrigger value="guide">{t("workflow_guide_tab")}</TabsTrigger>
+                </TabsList>
+              </div>
+              <TabsContent value="summary">{summary}</TabsContent>
+              <TabsContent value="about"><div id="project-input">{about}</div></TabsContent>
+              <TabsContent value="guide">
+                <LazyBoundary variant="pane"><WorkflowGuide /></LazyBoundary>
+              </TabsContent>
+            </Tabs>
           )}
           {!isAd && !readOnly ? <HandoffTip projectName={projectName} /> : null}
         </div>

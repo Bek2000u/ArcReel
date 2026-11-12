@@ -7,6 +7,7 @@
  * | `plan` | 脚本规划（内容确认页；剧本未生成时是集原文确认） | 非广告项目，有脚本规划中间稿、集原文待确认，或参考生视频项目 |
  * | `grid` | 多宫格分镜图 | 分镜图生视频且开启宫格；集原文待确认时不可选 |
  * | `board` | 分镜（参考生视频项目称「视频单元」） | 恒有；有脚本规划却还没有正式剧本时不可选 |
+ * | `relationships` | 分镜和素材关系 | 有正式剧本的非演示项目 |
  * | `edit` | 剪辑 | 有正式剧本的非演示项目 |
  *
  * 缺省视图：有正式剧本时是 `board`，否则有脚本规划时是 `plan`。地址只在所选视图不是缺省视图时
@@ -17,10 +18,10 @@ import type { EpisodeMeta, ProjectData } from "@/types";
 import type { EpisodeScript } from "@/types/script";
 import type { GenerationRoute } from "@/utils/generation-mode";
 
-export const EPISODE_VIEWS = ["setting", "plan", "grid", "board", EPISODE_VIEW_EDIT] as const;
+export const EPISODE_VIEWS = ["setting", "plan", "grid", "board", "relationships", EPISODE_VIEW_EDIT] as const;
 export type EpisodeView = (typeof EPISODE_VIEWS)[number];
 /** 画布承担的视图；故事设定与剪辑视图替换整个画布。 */
-export type CanvasView = Exclude<EpisodeView, "setting" | "edit">;
+export type CanvasView = Exclude<EpisodeView, "setting" | "edit" | "relationships">;
 
 /** 决定集页有哪些视图的事实，由路由层按项目与这一集算出。 */
 export interface EpisodeViewFacts {
@@ -102,7 +103,9 @@ export function episodeViewTabs(facts: EpisodeViewFacts): EpisodeViewTab[] {
   const boardEnabled =
     facts.hasScript || !plan || (facts.route === "reference_video" && !facts.sourceReview);
   tabs.push({ view: "board", disabled: !boardEnabled });
-  if (facts.hasScript && !facts.demo) tabs.push({ view: EPISODE_VIEW_EDIT, disabled: false });
+  if (facts.hasScript && !facts.demo) {
+    tabs.push({ view: "relationships", disabled: false }, { view: EPISODE_VIEW_EDIT, disabled: false });
+  }
   return tabs;
 }
 

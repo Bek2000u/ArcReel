@@ -60,6 +60,7 @@ export function EpisodePageHeader({
     plan: t("episode_view_plan"),
     grid: t("episode_view_grid"),
     board: boardLabel,
+    relationships: t("episode_view_relationships"),
     edit: t("episode_view_edit"),
   };
   return (
@@ -70,21 +71,23 @@ export function EpisodePageHeader({
         {progress}
       </div>
       <div className="flex h-10 items-center gap-3 px-4">
-        <Tabs value={view} onValueChange={(next: EpisodeView) => onViewChange(next)} className="shrink-0">
-          <TabsList aria-label={t("episode_view_aria")}>
-            {tabs.map((tab) =>
-              tab.disabled ? (
-                <DisabledViewTab key={tab.view} view={tab.view} label={label[tab.view]} />
-              ) : (
-                <TabsTrigger key={tab.view} value={tab.view} id={episodeViewTabId(tab.view)}>
-                  {label[tab.view]}
-                </TabsTrigger>
-              ),
-            )}
-          </TabsList>
-        </Tabs>
+        <div className="relative min-w-0 overflow-x-auto scroll-fade-x">
+          <Tabs value={view} onValueChange={(next: EpisodeView) => onViewChange(next)} className="w-max">
+            <TabsList aria-label={t("episode_view_aria")}>
+              {tabs.map((tab) =>
+                tab.disabled ? (
+                  <DisabledViewTab key={tab.view} view={tab.view} label={label[tab.view]} />
+                ) : (
+                  <TabsTrigger key={tab.view} value={tab.view} id={episodeViewTabId(tab.view)}>
+                    {label[tab.view]}
+                  </TabsTrigger>
+                ),
+              )}
+            </TabsList>
+          </Tabs>
+        </div>
         {/* 动作多到放不下时横向滚动；插槽靠右，溢出时从左端开始滚，不裁掉第一个动作。 */}
-        <div className="relative flex min-w-0 flex-1 overflow-x-auto scroll-fade-x">
+        <div className="relative flex min-w-0 flex-1 overflow-x-auto scroll-fade-x has-[button]:min-w-16 has-[a]:min-w-16">
           <div ref={onActionsSlot} className="ml-auto flex shrink-0 items-center gap-1.5" />
         </div>
       </div>

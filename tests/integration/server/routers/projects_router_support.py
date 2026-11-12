@@ -32,7 +32,13 @@ from lib.script.script_batch_edit import (
 )
 from lib.script.script_editor import ScriptEditError, patch_field, resolve_items
 from lib.speech.speech_composition import admit_script_unit
-from lib.workflow.workflow_state import ArtifactCount, EpisodesSummary, EpisodeSummary, ProjectSummary
+from lib.workflow.workflow_state import (
+    ArtifactCount,
+    EpisodeArtifactIds,
+    EpisodesSummary,
+    EpisodeSummary,
+    ProjectSummary,
+)
 from tests.fakes import use_project_manager, use_projects_session_factory
 
 
@@ -453,6 +459,7 @@ class _FakeSummaries:
                     duration_seconds=8,
                     storyboards=ArtifactCount(total=1, available=1, stale=0),
                     videos=ArtifactCount(total=1, available=0, stale=0),
+                    storyboard_ids=EpisodeArtifactIds(current_ids=["E1S01"]),
                 )
             ],
             source_remaining=False,

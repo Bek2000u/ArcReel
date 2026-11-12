@@ -1,0 +1,16 @@
+[data-film-graph] .react-flow__controls-button {
+  background-color: var(--card);
+  border-bottom-color: var(--border);
+  fill: var(--foreground);
+}
+
+[data-film-graph] .react-flow__controls-button:hover {
+  background-color: var(--muted);
+}
+[data-film-graph] .react-flow {
+  --xy-background-pattern-dots-color: var(--muted-foreground);
+}
+
+[data-film-graph] .react-flow__node-filmCard > :is(a, button) {
+  pointer-events: auto;
+}

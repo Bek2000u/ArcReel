@@ -18,10 +18,14 @@ function aspectRatioOf(data: ProjectData): string | null {
   return raw || null;
 }
 
-function formatDuration(seconds: number): string {
+function formatDuration(seconds: number, locale: string): string {
   // 先对总秒数取整再拆分，否则 119.6 秒会写成 1:60
   const total = Math.round(seconds);
-  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
+  const format = (unit: "minute" | "second", value: number) =>
+    new Intl.NumberFormat(locale, { style: "unit", unit, unitDisplay: "short" }).format(value);
+  const minutes = Math.floor(total / 60);
+  const remainder = total % 60;
+  return [minutes ? format("minute", minutes) : "", remainder || !minutes ? format("second", remainder) : ""].filter(Boolean).join(" ");
 }
 
 /** 概览页头：标题、元信息（模式 · 画幅 · 集数 · 脚本时长）与「项目设置」。 */
@@ -34,7 +38,7 @@ export function OverviewHeader({
   data: ProjectData;
   readOnly: boolean;
 }) {
-  const { t } = useTranslation("dashboard");
+  const { t, i18n } = useTranslation("dashboard");
   const isAd = data.content_mode === "ad";
   const episodes = data.episodes ?? [];
   // 各集脚本条目的计划时长之和，与侧栏集卡上的时长同一口径，不代表已生成的视频。
@@ -43,9 +47,9 @@ export function OverviewHeader({
 
   const meta = [
     t(MODE_LABEL_KEY[data.content_mode]),
-    aspect === "9:16" ? t("portrait_9_16") : aspect === "16:9" ? t("landscape_16_9") : aspect,
+    aspect,
     isAd ? null : episodes.length > 0 ? t("overview_meta_episodes", { count: episodes.length }) : t("overview_meta_no_episodes"),
-    scriptSeconds > 0 ? t("overview_meta_script_duration", { duration: formatDuration(scriptSeconds) }) : null,
+    scriptSeconds > 0 ? t("overview_meta_script_duration", { duration: formatDuration(scriptSeconds, i18n.language) }) : null,
   ].filter(Boolean);
 
   return (
@@ -54,7 +58,11 @@ export function OverviewHeader({
         <h1 className="display-serif text-2xl font-semibold tracking-tight break-words text-foreground">
           {data.title}
         </h1>
-        <p className="num mt-1 text-sm text-muted-foreground">{meta.join(" · ")}</p>
+        <p className="mt-1 flex flex-wrap gap-x-2 gap-y-0.5 text-sm text-muted-foreground">
+          {meta.map((item, index) => (
+            <span key={item} className="whitespace-nowrap">{index > 0 && <span aria-hidden className="mr-2">·</span>}{item}</span>
+          ))}
+        </p>
       </div>
       {readOnly ? null : (
         <Link

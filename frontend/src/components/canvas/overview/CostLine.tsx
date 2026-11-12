@@ -111,18 +111,19 @@ export function CostLine({ projectName, readOnly = false }: { projectName: strin
     notes.push(t("overview_cost_unpriced_actual", { count: countOf(unpricedActual) }));
   }
   const targets = priceTargets([...unpricedEstimate, ...unpricedActual]);
+  const unpricedCount = new Set([...unpricedEstimate, ...unpricedActual].map((model) => `${model.provider}/${model.model}`)).size;
+  const hideAmounts = unpricedCount > 0 && estimate === "—" && spent === "—";
 
   return (
     <div className="flex flex-col gap-1">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
-        <span className="text-muted-foreground">{t("overview_cost_label")}</span>
-        <span className="num flex flex-wrap items-center gap-x-1.5 text-subtle-foreground">
-          <span>{t("overview_cost_estimate", { amount: estimate })}</span>
-          <span aria-hidden className="text-muted-foreground">
-            ·
+        {hideAmounts ? <span className="text-muted-foreground">{t("overview_cost_incomplete")}</span> : (
+          <span className="num flex flex-wrap items-center gap-x-1.5 text-subtle-foreground">
+            <span>{t("overview_cost_estimate", { amount: estimate })}</span>
+            <span aria-hidden className="text-muted-foreground">·</span>
+            <span>{t("overview_cost_spent", { amount: spent })}</span>
           </span>
-          <span>{t("overview_cost_spent", { amount: spent })}</span>
-        </span>
+        )}
         {loading && !totals ? (
           <span role="status" className="text-muted-foreground">
             {t("calculating_cost")}
@@ -135,7 +136,9 @@ export function CostLine({ projectName, readOnly = false }: { projectName: strin
         ) : null}
         {totals ? (
           <Popover>
-            <PopoverTrigger render={<Button variant="link" size="sm" />}>{t("overview_cost_details")}</PopoverTrigger>
+            <PopoverTrigger render={<Button variant="link" size="sm" />}>
+              {unpricedCount > 0 ? t("overview_cost_models_unpriced", { count: unpricedCount }) : t("overview_cost_details")}
+            </PopoverTrigger>
             <PopoverContent align="start" className="w-120">
               <PopoverTitle className="sr-only">{t("overview_cost_details_title")}</PopoverTitle>
               <div className="grid grid-cols-2 gap-5 p-1">
@@ -146,6 +149,16 @@ export function CostLine({ projectName, readOnly = false }: { projectName: strin
                 />
                 <CostColumn label={t("overview_cost_actual_column")} rows={actualRows(totals.actual)} total={spent} />
               </div>
+              {unpricedCount > 0 && (
+                <ul className="space-y-1 border-t border-border py-2 text-xs text-muted-foreground">
+                  {notes.map((note) => <li key={note}>{note}</li>)}
+                  {targets.map((target) => (
+                    <li key={target.key}>
+                      <Link href={target.href} className="focus-ring rounded-sm break-all text-primary underline underline-offset-4">{target.label}</Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
               <div className="flex justify-end border-t border-border pt-1">
                 <Link
                   href={`~${settingsSectionPath("usage", { u_project: projectName })}`}
@@ -158,25 +171,11 @@ export function CostLine({ projectName, readOnly = false }: { projectName: strin
           </Popover>
         ) : null}
       </div>
-      {notes.length > 0 ? (
+      {unpricedCount === 0 && notes.length > 0 ? (
         <ul className="flex flex-col gap-0.5 text-xs text-muted-foreground">
           {notes.map((note) => (
             <li key={note}>{note}</li>
           ))}
-          {targets.length > 0 ? (
-            <li className="flex flex-col items-start">
-              <span>{t("overview_cost_set_price")}</span>
-              {targets.map((target) => (
-                <Link
-                  key={target.key}
-                  href={target.href}
-                  className="focus-ring rounded-sm py-1 break-all text-primary underline underline-offset-4"
-                >
-                  {target.label}
-                </Link>
-              ))}
-            </li>
-          ) : null}
         </ul>
       ) : null}
     </div>

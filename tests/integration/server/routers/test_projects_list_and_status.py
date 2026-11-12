@@ -146,6 +146,8 @@ class TestProjectsRouter:
         assert episode["duration_seconds"] == 8
         assert episode["storyboards"] == {"total": 1, "available": 1, "stale": 0}
         assert episode["videos"] == {"total": 1, "available": 0, "stale": 0}
+        assert episode["storyboard_ids"] == {"current_ids": ["E1S01"], "stale_ids": []}
+        assert episode["video_ids"] == {"current_ids": [], "stale_ids": []}
         # 每集明细只走 episodes[]，项目级 status 不重复驮一份
         assert "episodes" not in resp.json()["project"]["status"]
 

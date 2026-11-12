@@ -24,7 +24,7 @@ describe("ownerTarget", () => {
     expect(ownerTarget({ kind: "timeline", id: "tl-0123abcd", episode: 1 }, "demo")?.href).toBe(
       "/episodes/1?view=edit&tl=tl-0123abcd",
     );
-    expect(ownerTarget({ kind: "source" }, "demo")?.href).toBe("/episodes");
+    expect(ownerTarget({ kind: "source" }, "demo")?.href).toBe("/episodes?tab=source");
     expect(ownerTarget({ kind: "memory", id: "MEMORY.md" }, "my demo")?.href).toBe(
       "~/app/projects/my%20demo/settings?tab=memory&file=MEMORY.md",
     );

@@ -6,7 +6,7 @@ import { RECORDED_DIR, type RecordedResponse } from "../support/recorded.ts";
 import { expect, type ApiOverrides } from "../support/test.ts";
 
 // 项目「分集」视图：页头工具行、集目录与原文、方案栏，以及上传、新建、未登记文件等弹层。
-const PATH = "/app/projects/demo/episodes";
+const PATH = "/app/projects/demo/episodes?tab=source";
 // 项目事件流是 SSE，没有录制；按不可重试的状态拒绝，页面停在录制的项目数据上。
 const API: ApiOverrides = {
   "GET /api/v1/projects/demo/events/stream": { status: 404, body: { detail: "页面级套件不回放事件流" } },

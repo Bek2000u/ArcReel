@@ -162,7 +162,7 @@ defineRegionScenarios("广告项目概览与故事设定", [
       await clearAgentOverlay(page);
       await brief(page).getByText("60 秒", { exact: true }).click();
       const save = brief(page).getByRole("button", { name: "保存" });
-      await save.scrollIntoViewIfNeeded();
+      await save.evaluate((button) => button.scrollIntoView({ block: "center" }));
       await expect(save).toBeInViewport({ ratio: 1 });
     },
   },

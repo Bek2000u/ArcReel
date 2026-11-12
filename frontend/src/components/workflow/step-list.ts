@@ -957,7 +957,7 @@ function buildNext(facts: Facts, rows: StepRowView[], ctx: StepListContext): Nex
               key: "view-planning",
               label: t("workflow:act_view_planning_progress"),
               kind: "nav",
-              intent: { type: "route", path: episodesViewPath() },
+              intent: { type: "route", path: episodesViewPath({ tab: "source" }) },
             },
           ],
         };

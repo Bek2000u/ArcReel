@@ -181,7 +181,7 @@ defineRegionScenarios("新手引导", [
   },
   {
     name: "故事设定从原文生成后，底部出现一次性提示",
-    path: "/app/projects/demo",
+    path: "/app/projects/demo?tab=about",
     api: SOURCE_ONLY,
     ready: async (page) => {
       await page.getByRole("button", { name: "从原文生成" }).waitFor();

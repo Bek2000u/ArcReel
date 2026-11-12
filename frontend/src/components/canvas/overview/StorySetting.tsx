@@ -43,6 +43,7 @@ interface StorySettingProps {
   projectName: string;
   overview: ProjectOverview | undefined;
   readOnly: boolean;
+  title?: string;
   /** 项目有可读的原文（整本源文或已有故事设定），提供「从原文生成」。 */
   canGenerate: boolean;
   /** 正在从原文生成：显示骨架与「正在读取原文…」，完成后就地填入。 */
@@ -63,6 +64,7 @@ export function StorySetting({
   projectName,
   overview,
   readOnly,
+  title,
   canGenerate,
   generating,
   generateError,
@@ -203,7 +205,7 @@ export function StorySetting({
     >
       <div className="flex min-h-7 items-center gap-2">
         <h2 id={headingId} className="flex-1 text-sm font-medium text-subtle-foreground">
-          {t("overview_story_setting")}
+          {title ?? t("overview_story_setting")}
         </h2>
         {!readOnly && !generating && canGenerate ? (
           <Button variant="ghost" size="sm" onClick={startGenerate}>

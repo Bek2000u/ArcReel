@@ -26,7 +26,6 @@ export function AssetProgressLine({ data }: { data: ProjectData }) {
 
   return (
     <div className="flex flex-wrap items-baseline gap-x-1 gap-y-1 text-sm">
-      <span className="mr-2 text-muted-foreground">{t("overview_assets_label")}</span>
       {kinds.map((kind, index) => {
         const count = assets[kind.key] ?? { total: 0, available: 0, stale: 0 };
         return (

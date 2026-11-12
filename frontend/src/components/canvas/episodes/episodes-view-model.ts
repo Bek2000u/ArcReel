@@ -7,14 +7,18 @@ import type { EpisodeMeta, EpisodesView, EpisodesViewEpisode, EpisodesViewFile }
 export const EPISODES_VIEW_UPLOAD_PARAM = "upload";
 export const EPISODES_VIEW_EPISODE_PARAM = "episode";
 export const EPISODES_VIEW_CREATE_PARAM = "create";
+export const EPISODES_VIEW_TAB_PARAM = "tab";
+
+export type EpisodesViewTab = "catalog" | "film" | "source";
 
 export type SourceUploadMode = "whole_source" | "episode";
 
 /** 「分集」视图的地址（工作区内的相对路由）。 */
 export function episodesViewPath(
-  options: { upload?: SourceUploadMode; episode?: number; create?: boolean } = {},
+  options: { upload?: SourceUploadMode; episode?: number; create?: boolean; tab?: EpisodesViewTab } = {},
 ): string {
   const params = new URLSearchParams();
+  if (options.tab && options.tab !== "catalog") params.set(EPISODES_VIEW_TAB_PARAM, options.tab);
   if (options.upload) params.set(EPISODES_VIEW_UPLOAD_PARAM, options.upload);
   if (options.create) params.set(EPISODES_VIEW_CREATE_PARAM, "1");
   if (options.episode !== undefined) params.set(EPISODES_VIEW_EPISODE_PARAM, String(options.episode));

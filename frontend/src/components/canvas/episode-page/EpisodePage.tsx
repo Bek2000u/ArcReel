@@ -44,6 +44,7 @@ import { StorySettingView } from "./StorySettingView";
 
 // 剪辑视图（时间线播放器与轨道）只在切到「剪辑」时用到，按需拉取
 const EditTimelineView = lazyNamed(() => import("@/components/canvas/edit/EditTimelineView"), "EditTimelineView");
+const ShotRelationships = lazyNamed(() => import("./ShotRelationships"), "ShotRelationships");
 
 export interface EpisodeViewChangeOptions {
   /** 替换当前历史记录而不是新增一条：程序触发的切换（如跳到某个单元）用它，后退不必多退一步。 */
@@ -177,6 +178,12 @@ function EpisodePageContent({
             <EditTimelineEmptyState projectName={projectName} episode={episode} onCreated={reload} />
           )}
         />
+      </LazyBoundary>
+    );
+  } else if (view === "relationships") {
+    body = projectData && script && (
+      <LazyBoundary variant="pane">
+        <ShotRelationships key={`${projectName}::${episode}`} projectName={projectName} projectData={projectData} episode={episode} script={script} onViewUnit={viewUnit} />
       </LazyBoundary>
     );
   } else if (view === "setting") {

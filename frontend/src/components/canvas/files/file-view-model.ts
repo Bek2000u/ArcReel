@@ -73,7 +73,7 @@ export function ownerTarget(owner: FileViewOwner | null | undefined, projectName
         ? null
         : { href: episodeEditViewPath(owner.episode, owner.id), labelKey: "file_view_open_timeline" };
     case "source":
-      return { href: episodesViewPath(), labelKey: "file_view_open_source" };
+      return { href: episodesViewPath({ tab: "source" }), labelKey: "file_view_open_source" };
     case "memory":
       return {
         href: `~${projectSettingsPath(projectName, "memory", owner.id ? { file: owner.id } : {})}`,

@@ -102,7 +102,7 @@ async function openPlanning(label: string) {
   return within(await screen.findByRole("dialog"));
 }
 
-function renderView(path = "/episodes") {
+function renderView(path = "/episodes?tab=source") {
   const location = memoryLocation({ path, record: true });
   const view = render(
     <Router hook={location.hook} searchHook={location.searchHook}>
@@ -126,6 +126,17 @@ describe("EpisodesView", () => {
 
   afterEach(() => {
     vi.unstubAllGlobals();
+  });
+
+  it("opens the catalog by default and keeps the source view available", async () => {
+    vi.spyOn(API, "getEpisodesView").mockResolvedValue(VIEW);
+    renderView("/episodes");
+    expect(await screen.findByRole("tab", { name: "剧集目录", selected: true })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "开端" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("tab", { name: "全片" }));
+    expect(screen.getByRole("region", { name: "开端" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("tab", { name: "原文" }));
+    expect(await findManuscript()).toBeInTheDocument();
   });
 
   it("shows the whole source segmented by episode with a file bar", async () => {
@@ -202,7 +213,7 @@ describe("EpisodesView", () => {
     expect(await screen.findByRole("dialog", { name: "上传原文" })).toBeInTheDocument();
     expect(screen.getByRole("radio", { name: /逐集原文/ })).toBeChecked();
     // 模态对话框打开期间背景对辅助技术隐藏（含之后才加载出的正文），按 hidden 查询确认正文照常加载。
-    expect(await screen.findByRole("region", { name: "整本源文", hidden: true })).toBeInTheDocument();
+    expect(await screen.findByRole("tab", { name: "剧集目录", hidden: true })).toBeInTheDocument();
     await waitFor(() => expect(location.history?.at(-1)).toBe("/episodes"));
   });
 
@@ -339,9 +350,11 @@ describe("EpisodesView", () => {
 
     it("offers merging, clearing and replanning only for cut episodes", async () => {
       vi.spyOn(API, "getEpisodesView").mockResolvedValue(VIEW);
-      renderView();
+      const { location } = renderView();
 
       await chooseEpisodeAction("转折", "打开这一集");
+      expect(location.history.at(-1)).toBe("/episodes/2");
+      act(() => location.navigate("/episodes?tab=source"));
       const outline = await findOutline();
 
       fireEvent.click(within(outline).getByRole("button", { name: "「转折」的操作" }));
