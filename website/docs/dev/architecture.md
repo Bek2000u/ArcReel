@@ -205,6 +205,8 @@ flowchart TD
 
 Agent 工具在 `server/agent_toolset/` 只声明一次：内嵌会话经 `server/agent_runtime/arcreel_mcp.py` 构建进程内 MCP server，外部 Agent 经远程 MCP，两侧都从这份声明投影（[ADR 0087](https://github.com/ArcReel/ArcReel/blob/main/docs/adr/0087-agent-toolset-single-declaration.md)）。`tests/integration/server/agent_toolset/test_host_consistency.py` 校验两侧宿主注册的工具集合与声明相同。
 
+`list_project_tasks` 分页查看当前项目的任务，支持按状态、任务类型和提交来源筛选。`get_task` 按任务 ID 读取同一项目内的任务。两者返回任务状态、已知的供应商任务 ID 和错误码，省略供应商请求和响应正文。`get_final_cut_status` 按时间线、旁白和字幕版本查询已有成片的时效与可用下载地址。三个工具均为只读。
+
 ### 5.4 会话串行 {#session-actor}
 
 每个会话的 `ClaudeSDKClient` 由该会话专属的 `SessionActor` task 独占，query、interrupt、撤回排队消息与 disconnect 都经命令队列投递，在 actor 内串行执行。新增会话操作同样走命令队列，不直接持有 client（[ADR 0028](https://github.com/ArcReel/ArcReel/blob/main/docs/adr/0028-session-actor-single-task-serialization.md)）。

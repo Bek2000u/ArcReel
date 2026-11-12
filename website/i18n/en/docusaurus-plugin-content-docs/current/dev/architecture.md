@@ -203,6 +203,8 @@ These operations should not be repeatedly delegated to a language model for free
 
 Agent tools are declared once, in `server/agent_toolset/`: embedded sessions build an in-process MCP server through `server/agent_runtime/arcreel_mcp.py`, external Agents use the remote MCP, and both project from the same declarations ([ADR 0087](https://github.com/ArcReel/ArcReel/blob/main/docs/adr/0087-agent-toolset-single-declaration.md)). `tests/integration/server/agent_toolset/test_host_consistency.py` checks that both hosts register exactly the declared tool set.
 
+The read-only Agent tools `list_project_tasks` and `get_task` inspect persisted tasks in the current project. The list supports pagination and filters for status, task type, and submission source. Both return status, known provider job IDs, and error codes while omitting provider payloads. `get_final_cut_status` looks up an existing cut and its download URL by timeline and narration and subtitle variants.
+
 ### 5.4 Session Serialization {#session-actor}
 
 Each session's `ClaudeSDKClient` is owned exclusively by that session's dedicated `SessionActor` task. Query, interrupt, withdrawing queued messages, and disconnect are all delivered through a command queue and executed serially inside the actor. New session operations also go through the command queue instead of holding the client directly ([ADR 0028](https://github.com/ArcReel/ArcReel/blob/main/docs/adr/0028-session-actor-single-task-serialization.md)).
