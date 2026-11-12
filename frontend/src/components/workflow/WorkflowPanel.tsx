@@ -31,13 +31,13 @@ import { draftFallbackText, draftFixRequestText } from "@/components/shared/draf
 import { prefillAssistant } from "@/components/shared/prefill-assistant";
 import { diagnosticCode } from "@/hooks/useDraftEditor";
 import { useEpisodeLedger } from "@/hooks/useEpisodeLedger";
-import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+import { useWorkflowPlan } from "@/hooks/useWorkflowPlan";
 import { useAdScriptStore } from "@/stores/ad-script-store";
 import { useAppStore } from "@/stores/app-store";
 import { useEpisodeSurfaceStore } from "@/stores/episode-surface-store";
 import { useProjectsStore } from "@/stores/projects-store";
 import { useScriptPlanStore } from "@/stores/script-plan-store";
-import { isResourceBusy, useTasksStore } from "@/stores/tasks-store";
+import { isResourceBusy } from "@/stores/tasks-store";
 import { useWorkflowStore } from "@/stores/workflow-store";
 import type { ProjectData, StoryboardBatchKind } from "@/types";
 import type { EpisodeEditOverview } from "@/types/edit-timeline";
@@ -55,15 +55,6 @@ import { ProblemList } from "./ProblemList";
 import { StepListRow } from "./StepListRow";
 import { blockerViews, nextStepForAction } from "./problem-views";
 import { buildStepList, type StepAct } from "./step-list";
-
-/**
- * 任务指纹变化到发起重新求解之间的合并窗口（毫秒）。
- *
- * 一批任务入队/开跑/落地时状态是逐条跳的，每跳一次就求解一次计划，等于为同一批生成
- * 打出十几个 `POST /workflow-plan`。窗口内的连续跳变合并成一次；窗口取值只需盖住同一
- * 轮轮询写回引起的连锁跳变，不该长到让面板明显滞后于任务列表。
- */
-const PLAN_REFRESH_DEBOUNCE_MS = 250;
 
 const ASSET_ROUTES: [keyof ProjectData, string][] = [
   ["characters", WORKSPACE_ROUTE_CHARACTERS],
@@ -158,49 +149,11 @@ export function WorkflowPanel({ projectName, episode, onViewUnit, onRegenerate, 
   const [pendingDiscard, setPendingDiscard] = useState<PendingDiscard | null>(null);
   const [discarding, setDiscarding] = useState(false);
 
-  const plan = useWorkflowStore((s) => s.plan);
-  const planKey = useWorkflowStore((s) => s.planKey);
-  const loading = useWorkflowStore((s) => s.loading);
-  const error = useWorkflowStore((s) => s.error);
+  const { key: currentKey, plan: shown, loading, error, refreshPlan } = useWorkflowPlan(projectName, episode);
   const confirmDurations = useWorkflowStore((s) => s.confirmDurations);
-  const confirmedDurations = useWorkflowStore((s) => s.confirmedDurations);
-  const refreshPlan = useWorkflowStore((s) => s.refreshPlan);
-  const resetTarget = useWorkflowStore((s) => s.resetTarget);
   const projectData = useProjectsStore((s) => s.currentProjectData);
   const scripts = useProjectsStore((s) => s.currentScripts);
   const ledger = useEpisodeLedger();
-
-  // 项目快照修订号与任务指纹是两条既有的变更信号：前者随 project.json / 剧本写入递增
-  // （SSE 项目事件驱动），后者随任务轮询变化。计划同时依赖这两类事实，故两者都进依赖。
-  //
-  // 任务指纹只取当前项目的任务：任务列表在「不按项目过滤」的作用域下是全局的，别的项目
-  // 跑生成同样会让指纹变，本项目的计划却不会因此改变——不过滤就等于替别人的进度重求解。
-  const snapshotRevision = useProjectsStore((s) => s.projectSnapshotRevisions[projectName] ?? 0);
-  const taskFingerprint = useTasksStore((s) =>
-    s.tasks
-      .filter((task) => task.project_name === projectName)
-      .map((task) => `${task.task_id}:${task.status}`)
-      .join("|"),
-  );
-  const settledTaskFingerprint = useDebouncedValue(taskFingerprint, PLAN_REFRESH_DEBOUNCE_MS);
-
-  useEffect(() => {
-    if (!projectName) return;
-    void refreshPlan(projectName, episode);
-  }, [
-    projectName,
-    episode,
-    snapshotRevision,
-    settledTaskFingerprint,
-    confirmedDurations,
-    refreshPlan,
-  ]);
-
-  useEffect(() => () => resetTarget(), [resetTarget]);
-
-  const currentKey = `${projectName}::${episode ?? ""}`;
-  // 计划属于另一个目标时不拿它陈述当前目标——切集途中的旧事实比没有事实更糟。
-  const shown = planKey === currentKey ? plan : null;
   const episodeId = shown?.status.target?.episode ?? episode;
   const episodeMeta = projectData?.episodes?.find((entry) => entry.episode === episodeId);
   const episodeRef = episodeId != null ? episodeAgentRef(ledger, episodeId, t) : "";
