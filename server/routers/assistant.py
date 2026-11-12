@@ -168,11 +168,14 @@ async def send_message(
             client_key=req.client_key,
         )
     except SessionSupersededError as exc:
-        raise ConflictError("session_already_superseded") from exc
+        code = "session_already_superseded"
+        raise ConflictError(code).with_diagnostic({"code": code}) from exc
     except UnrecordedMessageError as exc:
-        raise ConflictError("message_accepted_but_unrecorded") from exc
+        code = "message_accepted_but_unrecorded"
+        raise ConflictError(code).with_diagnostic({"code": code}) from exc
     except SessionCapacityError as exc:
-        raise ServiceUnavailableError("session_capacity_exceeded") from exc
+        code = "session_capacity_exceeded"
+        raise ServiceUnavailableError(code).with_diagnostic({"code": code}) from exc
     except FileNotFoundError as exc:
         raise NotFoundError("session_or_project_not_found") from exc
     except TimeoutError as exc:
