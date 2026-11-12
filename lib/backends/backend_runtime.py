@@ -599,6 +599,10 @@ def redact_provider_text(value: object) -> str:
     if not isinstance(value, str):
         # 非字符串只出现在留痕的兜底分支：没有 URL 文本可剥，交通用遮蔽器统一 str 化
         return redact_diagnostic_text(value)
+    # 供应商可能回显请求中的内联素材；诊断无需保存素材内容或逐字扫描其 Base64。
+    header = value[:256].lower()
+    if header.startswith("data:") and ";base64," in header:
+        return "<inline data URI>"
     return redact_diagnostic_text(_strip_url_queries(value))
 
 

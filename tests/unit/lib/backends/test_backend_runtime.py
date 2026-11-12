@@ -1280,6 +1280,14 @@ class TestRecordingPoll:
             on_provider_response=_record,
         )
 
+    async def test_echoed_inline_media_is_omitted_from_diagnostics(self):
+        recorded: list[tuple[str, object]] = []
+        body = {"status": "running", "request": {"image": "data:image/png;base64," + "A" * 4_000_000}}
+        poll = recording_poll(AsyncMock(return_value=body), self._request(recorded))
+
+        assert await poll() is body
+        assert recorded == [("poll", {"status": "running", "request": {"image": "<inline data URI>"}})]
+
     async def test_terminal_failure_body_is_recorded_before_it_raises(self):
         """终态失败由 is_failed 在 poll_with_retry 内抛出，留痕仍须拿到该响应体。"""
         recorded: list[tuple[str, object]] = []
