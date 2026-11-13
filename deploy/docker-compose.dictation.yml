@@ -1,0 +1,21 @@
+# Optional local speech recognition. Add this file after docker-compose.yml.
+services:
+  arcreel:
+    environment:
+      ARCREEL_GIGASTT_URL: http://gigastt:9876
+
+  gigastt:
+    image: ghcr.io/ekhodzitsky/gigastt:2.22.0
+    command: ["serve", "--host", "0.0.0.0", "--bind-all", "--model-variant", "e2e_rnnt", "--execution-provider", "cpu", "--pool-size", "1"]
+    volumes:
+      - gigastt-models:/home/gigastt/.gigastt/models
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9876/ready"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 120s
+    restart: unless-stopped
+
+volumes:
+  gigastt-models:

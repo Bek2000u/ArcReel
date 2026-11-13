@@ -300,6 +300,7 @@ dependencies = [
     { name = "tos" },
     { name = "uvicorn" },
     { name = "volcengine-python-sdk", extra = ["ark"] },
+    { name = "websockets" },
     { name = "xai-sdk" },
 ]
 
@@ -368,6 +369,7 @@ requires-dist = [
     { name = "tos", specifier = ">=2.9.3" },
     { name = "uvicorn", specifier = ">=0.41.0" },
     { name = "volcengine-python-sdk", extras = ["ark"], specifier = ">=5.0.17" },
+    { name = "websockets", specifier = ">=16.1.1" },
     { name = "xai-sdk", specifier = ">=1.20.0" },
 ]
 

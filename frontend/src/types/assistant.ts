@@ -10,6 +10,12 @@
 
 export type SessionStatus = "idle" | "running" | "completed" | "error" | "interrupted";
 
+export interface AgentContextUsage {
+  used_tokens: number;
+  limit_tokens: number;
+  compact_at_tokens: number | null;
+}
+
 export interface SessionMeta {
   id: string;              // 现在就是 sdk_session_id
   project_name: string;

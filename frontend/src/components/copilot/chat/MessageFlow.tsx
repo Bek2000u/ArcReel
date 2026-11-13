@@ -1,5 +1,5 @@
 import { useImperativeHandle, useMemo, type Ref } from "react";
-import { Bot } from "lucide-react";
+import { Bot, Loader2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { ImagePayload, TimelineEntry } from "@/types";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
@@ -18,6 +18,7 @@ import { ArrivedFailuresContext } from "./arrived-failures";
 import { buildDisplayItems } from "./display-items";
 import { MessageRow } from "./MessageRow";
 import { canEditUserTurn } from "./utils";
+import { subagentStatus, toolStatus } from "./work-label";
 
 // ---------------------------------------------------------------------------
 // MessageFlow — Agent 面板的消息区。
@@ -73,8 +74,21 @@ function MessageFlowBody({ ref, onSubmitEdit, onRetryStartup }: MessageFlowProps
 
   const items = useMemo(() => buildDisplayItems(turns, draftTurn), [turns, draftTurn]);
   const arrived = useMemo(() => arrivedFailures(entries, historySeq), [entries, historySeq]);
+  const lastItem = items.at(-1);
+  const lastBlock = lastItem?.turn.type === "assistant" ? lastItem.turn.content.at(-1) : undefined;
+  const showingActivity = lastBlock && (
+    (lastBlock.type === "tool_use" && (lastBlock.task_info || lastBlock.sub_turns
+      ? subagentStatus(lastBlock, false) : toolStatus(lastBlock, false)) === "running") ||
+    (lastBlock.type === "task_progress" && (lastBlock.status === "task_started" || lastBlock.status === "task_progress")) ||
+    (lastItem?.streaming && (lastBlock.type === "thinking" || (lastBlock.type === "text" && Boolean(lastBlock.text?.trim()))))
+  );
+  const status = !hasPendingQuestion && !startupFailure && (
+    sessionStatus === "running"
+      ? !showingActivity && t("chat_waiting_for_model")
+      : sending && t("send_message_pending")
+  );
 
-  if (items.length === 0 && !startupFailure) {
+  if (items.length === 0 && !startupFailure && !status) {
     // 加载期间留白，不闪一下空状态
     if (messagesLoading) return <div className="min-h-0 flex-1" />;
     return (
@@ -111,6 +125,14 @@ function MessageFlowBody({ ref, onSubmitEdit, onRetryStartup }: MessageFlowProps
               </MessageScrollerItem>
             ))}
           </ArrivedFailuresContext.Provider>
+          {status && (
+            <MessageScrollerItem messageId="agent-activity">
+              <p role="status" className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Loader2 aria-hidden className="size-3 shrink-0 animate-spin" />
+                {status}
+              </p>
+            </MessageScrollerItem>
+          )}
           {startupFailure && (
             <MessageScrollerItem messageId="startup-failure">
               <AgentFailureCard failure={startupFailure} announce onRetry={onRetryStartup} />

@@ -1,5 +1,5 @@
 import { useMemo, useState, type ReactNode } from "react";
-import { ChevronRight, CircleAlert, type LucideIcon } from "lucide-react";
+import { ChevronRight, CircleAlert, Loader2, type LucideIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { cn } from "cn";
 import { Button } from "@/components/ui/button";
@@ -83,7 +83,7 @@ function WorkStatusMark({ status, iconSize }: { status: WorkStatus; iconSize?: s
     case "running":
       return (
         <>
-          <span aria-hidden className="size-1.5 shrink-0 animate-breath rounded-full bg-primary" />
+          <Loader2 aria-hidden className={cn(iconSize, "shrink-0 animate-spin")} />
           <span className="sr-only">{t("work_status_running")}</span>
         </>
       );

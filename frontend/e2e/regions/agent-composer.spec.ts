@@ -1,7 +1,9 @@
 import type { Page } from "@playwright/test";
 import { waitForEntrance } from "../support/region-helpers.ts";
 import { defineRegionScenarios } from "../support/scenarios.ts";
-import { expect, type ApiOverrides } from "../support/test.ts";
+import { expect, test, type ApiOverrides } from "../support/test.ts";
+import { RECORDED_ACCESS_TOKEN } from "../support/recorded.ts";
+import demoProject from "../fixtures/recorded/project-demo.json" with { type: "json" };
 import { idleSessionApi } from "../support/assistant-session.ts";
 
 // Agent 面板输入区：Agent 提问时的问卷、待办进度行、排队消息托盘、会话历史与删除确认、斜杠命令菜单、
@@ -232,7 +234,68 @@ async function openHistory(page: Page) {
   await page.getByRole("searchbox", { name: "搜索会话" }).waitFor();
 }
 
+test("从关联图讨论分镜，切换选中项后发送仍使用原分镜 ID", async ({ page, api }) => {
+  const script = demoProject.body.scripts["episode_1.json"];
+  api.override({
+    ...HISTORY_API,
+    "GET /api/v1/projects/demo": {
+      status: 200,
+      body: {
+        ...demoProject.body,
+        scripts: {
+          "episode_1.json": {
+            ...script,
+            segments: ["opening", "arrival"].map((segment_id) => ({
+              segment_id, duration_seconds: 5, characters_in_segment: [], scenes: [], props: [],
+            })),
+          },
+        },
+      },
+    },
+    [`POST ${SESSIONS_PATH}/send`]: { status: 200, body: { status: "accepted", session_id: IDLE_SESSION_ID } },
+  });
+  await page.addInitScript((token) => localStorage.setItem("arcreel_auth_token", token), RECORDED_ACCESS_TOKEN);
+  await page.goto(`${EPISODE_PATH}?view=relationships`);
+  const discuss = page.getByRole("button", { name: "讨论镜头" });
+  const closePanel = agentPanel(page).getByRole("button", { name: "收起 Agent 面板" });
+  await discuss.waitFor();
+  if (await closePanel.isVisible()) await closePanel.click();
+  await discuss.click();
+  await expect(agentInput(page)).toBeVisible();
+  await agentInput(page).fill("核对衔接");
+  await closePanel.click();
+  await page.getByRole("combobox", { name: "选择分镜或视频单元" }).click();
+  await page.getByRole("option", { name: "分镜 2" }).click();
+  await page.getByRole("button", { name: "Agent", exact: true }).click();
+  await expect(agentPanel(page)).toContainText("第 1 集 · 分镜 1");
+
+  const sent = page.waitForRequest((request) => request.method() === "POST" && request.url().endsWith(`${SESSIONS_PATH}/send`));
+  await agentPanel(page).getByRole("button", { name: "发送消息", exact: true }).click();
+  const body = (await sent).postDataJSON() as { content: string };
+  expect(body.content).toMatch(/^核对衔接\n\n.*ID：opening/);
+  await expect(agentPanel(page).getByRole("button", { name: "移除镜头上下文" })).toBeHidden();
+});
+
 defineRegionScenarios("Agent 输入区", [
+  {
+    name: "上下文窗口显示用量、剩余比例与自动压缩余量",
+    path: EPISODE_PATH,
+    api: {
+      ...HISTORY_API,
+      [`GET ${SESSIONS_PATH}/${IDLE_SESSION_ID}/context`]: {
+        status: 200,
+        body: { used_tokens: 25000, limit_tokens: 100000, compact_at_tokens: 80000 },
+      },
+    },
+    ready: historyReady,
+    act: async (page) => {
+      await agentPanel(page).getByRole("button", { name: "上下文窗口" }).click();
+      const context = page.getByRole("dialog", { name: "上下文窗口" });
+      await expect(context.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "25");
+      await expect(context).toContainText("剩余 75%");
+      await expect(context).toContainText("距离自动压缩还剩 55,000 个 token");
+    },
+  },
   {
     name: "Agent 提问时问卷占用输入框的位置，待办进度显示在它上方",
     path: EPISODE_PATH,

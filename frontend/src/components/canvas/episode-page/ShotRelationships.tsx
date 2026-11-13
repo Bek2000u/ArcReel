@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowUpRight, Film, Image, Play } from "lucide-react";
+import { ArrowUpRight, Film, Image, MessageSquare, Play } from "lucide-react";
 import { Position } from "@xyflow/react";
 import { cn } from "cn";
 import { useTranslation } from "react-i18next";
@@ -11,6 +11,7 @@ import { refreshAfterWrite } from "@/components/canvas/shared/refreshAfterWrite"
 import { ProjectThumbnail } from "@/components/canvas/shared/ProjectThumbnail";
 import { VersionTimeMachine } from "@/components/canvas/timeline/VersionTimeMachine";
 import { PresentationPlayer } from "@/components/shared/PresentationPlayer";
+import { discussShot } from "@/components/shared/prefill-assistant";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
@@ -212,6 +213,10 @@ export function ShotRelationships({ projectName, projectData, episode, script, o
             </div>
           )}
           <p className="flex items-center gap-2 text-xs text-muted-foreground"><Image aria-hidden className="size-4" />{t("graph_reference_count", { total: references.length })}</p>
+          <Button variant="outline" size="sm" onClick={() => discussShot({ projectName, episode, unitId: shot.id, unitLabel: selectedLabel })}>
+            <MessageSquare aria-hidden data-icon="inline-start" />
+            {t(isReference ? "graph_discuss_unit" : "graph_discuss_shot")}
+          </Button>
         </section>
       </div>
     </div>

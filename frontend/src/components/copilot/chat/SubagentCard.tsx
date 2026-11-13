@@ -4,7 +4,7 @@ import { useArrivedFailures } from "./arrived-failures";
 import { ContentBlockRenderer } from "./ContentBlockRenderer";
 import { TextBlock } from "./TextBlock";
 import { WorkRow, useSessionDone } from "./WorkRow";
-import { SUBAGENT_ICON, segmentWorkBlocks, type WorkStatus } from "./work-label";
+import { SUBAGENT_ICON, segmentWorkBlocks, subagentStatus } from "./work-label";
 
 // ---------------------------------------------------------------------------
 // SubagentCard – 子智能体（Agent/Task tool_use）的工序行，默认收起：描述加运行中的用量。
@@ -12,16 +12,6 @@ import { SUBAGENT_ICON, segmentWorkBlocks, type WorkStatus } from "./work-label"
 // 末尾是子智能体结论。实时与历史回放走同一投影，呈现一致。终态取 task_info.task_status 的
 // completed / failed / stopped；合成卡片的描述在 task_info.description，结论在 task_info.summary。
 // ---------------------------------------------------------------------------
-
-function deriveStatus(block: ContentBlock, sessionDone: boolean): WorkStatus {
-  const task = block.task_info;
-  if (task?.task_status === "failed" || block.is_error) return "error";
-  if (task?.task_status === "completed" || block.result !== undefined) return "ok";
-  // 缺锚点子智能体的推断终态：子时间线停在工具调用中途
-  if (task?.task_status === "stopped") return "stopped";
-  // 会话终结且子智能体无终态时显示已停止，避免运行状态悬挂。
-  return sessionDone ? "stopped" : "running";
-}
 
 function deriveDescription(block: ContentBlock): string {
   const input = block.input ?? {};
@@ -34,7 +24,7 @@ function deriveDescription(block: ContentBlock): string {
 export function SubagentCard({ block }: { block: ContentBlock }) {
   const { t } = useTranslation("dashboard");
   const sessionDone = useSessionDone();
-  const status = deriveStatus(block, sessionDone);
+  const status = subagentStatus(block, sessionDone);
 
   const arrived = useArrivedFailures();
   const subTurns = block.sub_turns ?? [];

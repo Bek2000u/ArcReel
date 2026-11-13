@@ -25,6 +25,13 @@ import {
 /** 启动失败的来源入口——决定故障卡片的重试重放哪一处输入。 */
 export type StartupFailureOrigin = "send" | "rewrite";
 
+export interface ShotDraftContext {
+  projectName: string;
+  episode: number;
+  unitId: string;
+  unitLabel: string;
+}
+
 export type SessionResumeSignal =
   | { kind: "resumed"; projectName: string; sessionId: string }
   | { kind: "resync"; projectName: string };
@@ -54,6 +61,7 @@ interface AssistantState {
 
   // Input
   input: string;
+  shotDraftContext: ShotDraftContext | null;
   /** 待追加到输入框末尾的消息内容（编辑排队消息时退回），由输入框取走。 */
   composerAppends: ContentBlock[][];
   sending: boolean;
@@ -127,6 +135,7 @@ interface AssistantState {
   /** 这条消息是否已经离开排队（被接纳或被丢弃）。 */
   hasLeftQueue: (id: string) => boolean;
   setInput: (input: string) => void;
+  setShotDraftContext: (context: ShotDraftContext | null) => void;
   /** 把一条消息的内容交给输入框，追加在已有内容之后。 */
   appendToComposer: (content: ContentBlock[]) => void;
   /** 输入框取走待追加的内容。 */
@@ -211,6 +220,7 @@ export const useAssistantStore = create<AssistantState>((set, get) => {
     historySeq: -1,
     queuedMessages: [],
     input: "",
+    shotDraftContext: null,
     composerAppends: [],
     sending: false,
     interrupting: false,
@@ -341,6 +351,7 @@ export const useAssistantStore = create<AssistantState>((set, get) => {
     },
     hasLeftQueue: (id) => settledQueuedIds.has(id),
     setInput: (input) => set({ input }),
+    setShotDraftContext: (shotDraftContext) => set({ shotDraftContext }),
     appendToComposer: (content) => set({ composerAppends: [...get().composerAppends, content] }),
     takeComposerAppends: () => {
       const appends = get().composerAppends;
@@ -360,7 +371,10 @@ export const useAssistantStore = create<AssistantState>((set, get) => {
     setSkills: (skills) => set({ skills }),
     setSkillsLoading: (loading) => set({ skillsLoading: loading }),
     setEditingTurnUuid: (uuid) => set({ editingTurnUuid: uuid }),
-    setCurrentProject: (project) => set({ currentProject: project }),
+    setCurrentProject: (project) => set((state) => ({
+      currentProject: project,
+      shotDraftContext: state.shotDraftContext?.projectName === project ? state.shotDraftContext : null,
+    })),
     setIsDraftSession: (draft) => set({ isDraftSession: draft }),
     notifySessionResumed: (projectName, sessionId) =>
       set((s) => ({ sessionResumeSignals: [...s.sessionResumeSignals, { kind: "resumed", projectName, sessionId }] })),

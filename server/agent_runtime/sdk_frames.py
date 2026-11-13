@@ -70,3 +70,8 @@ async def cancel_async_message(client: Any, message_uuid: str) -> bool:
         {"subtype": "cancel_async_message", "message_uuid": message_uuid}
     )
     return response.get("cancelled") is True
+
+
+async def read_context_usage(client: Any) -> dict[str, Any]:
+    """Use the SDK's control transport so this optional count has a short timeout."""
+    return await client._query._send_control_request({"subtype": "get_context_usage"}, timeout=5.0)

@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useImperativeHandle, useRef, useState, type Ref } from "react";
-import { ArrowUp, Loader2, Paperclip, Square, X } from "lucide-react";
+import { useCallback, useEffect, useImperativeHandle, useRef, useState, type ReactNode, type Ref } from "react";
+import { ArrowUp, Loader2, Mic, Paperclip, Square, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { cn } from "cn";
 import {
@@ -13,8 +13,10 @@ import {
   AttachmentTrigger,
 } from "@/components/ui/attachment";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogBody, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupTextarea } from "@/components/ui/input-group";
+import { useDictation } from "@/hooks/useDictation";
 import {
   imagePayloadToAttachment,
   MAX_ATTACHED_IMAGES,
@@ -42,6 +44,7 @@ interface AgentComposerProps {
   /** 发送请求在途：发送按钮转圈。 */
   sending: boolean;
   placeholder: string;
+  contextControl?: ReactNode;
   /** 提问占用输入框位置时隐藏输入框；仍保持挂载，已输入的文字与附件不丢。排队消息托盘照常显示。 */
   hidden?: boolean;
   /** 发送消息；受理后清掉已发出的文字与附件，未受理时保留供重试。 */
@@ -86,6 +89,7 @@ export function AgentComposer({
   running,
   sending,
   placeholder,
+  contextControl,
   hidden,
   onSend,
   onInterrupt,
@@ -99,6 +103,10 @@ export function AgentComposer({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const composingRef = useRef(false);
   const [text, setText] = useState("");
+  const dictation = useDictation((transcript) => {
+    setText((current) => current.trim() ? `${current.trimEnd()} ${transcript}` : transcript);
+    requestAnimationFrame(() => textareaRef.current?.focus());
+  });
   const [isDragOver, setIsDragOver] = useState(false);
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
 
@@ -124,11 +132,12 @@ export function AgentComposer({
     invalidatePendingTranscodes,
   } = useImageAttachments();
   const hasQueuedMessages = useAssistantStore((s) => s.queuedMessages.length > 0);
+  const shotContext = useAssistantStore((s) => s.shotDraftContext);
   const attachDisabled = disabled || isReading || images.length >= MAX_ATTACHED_IMAGES;
   const hasContent = text.trim().length > 0 || images.length > 0;
   // 退回的排队消息可能让图片超过上限：全部保留，移除多出的才能发送
   const tooManyImages = images.length > MAX_ATTACHED_IMAGES;
-  const canSend = !disabled && !isReading && hasContent && !tooManyImages;
+  const canSend = !disabled && !isReading && hasContent && !tooManyImages && dictation.phase === "idle";
   const previewImage = previewIndex === null ? undefined : images[previewIndex];
 
   const send = useCallback(() => {
@@ -137,21 +146,33 @@ export function AgentComposer({
     setSlash(null);
     const submittedText = text;
     const submittedImages = images;
+    const prompt = submittedText.trim();
+    const contextLine = shotContext && t("chat_shot_context_prompt", {
+      episode: shotContext.episode,
+      unit: shotContext.unitLabel,
+      id: shotContext.unitId,
+    });
+    const content = contextLine ? [prompt, contextLine].filter(Boolean).join("\n\n") : prompt;
     voidCall(
-      onSend(submittedText.trim(), submittedImages.length > 0 ? submittedImages : undefined).then((accepted) => {
+      onSend(content, submittedImages.length > 0 ? submittedImages : undefined).then((accepted) => {
         if (!accepted) return;
         // 只清掉这次发出的文字与图片：发送途中编辑退回的内容不在这次发送里，留给用户再发
         setText((current) => withoutSubmittedText(current, submittedText));
         removeImages(submittedImages.map((image) => image.id));
+        const store = useAssistantStore.getState();
+        if (shotContext && store.shotDraftContext === shotContext) store.setShotDraftContext(null);
       }),
     );
-  }, [canSend, images, invalidatePendingTranscodes, onSend, removeImages, text]);
+  }, [canSend, images, invalidatePendingTranscodes, onSend, removeImages, shotContext, t, text]);
 
   useImperativeHandle(ref, () => ({ send }), [send]);
 
   // 外部投递的一次性预填（如分集空态的入口经 store.input 投递）：覆盖输入框后清空 store 字段，避免重复预填
   useEffect(() => {
     return useAssistantStore.subscribe((state, prev) => {
+      if (state.shotDraftContext && state.shotDraftContext !== prev.shotDraftContext) {
+        requestAnimationFrame(() => textareaRef.current?.focus());
+      }
       if (!state.input || state.input === prev.input) return;
       setText(state.input);
       setSlash(null);
@@ -277,6 +298,7 @@ export function AgentComposer({
       />
       {/* 问卷替换的只是输入框：托盘在外，提问期间仍可编辑、删除排队消息 */}
       <div hidden={hidden}>
+        {dictation.error && <p role="alert" className="mb-2 text-xs text-destructive">{t(`chat_dictation_${dictation.error}`)}</p>}
         {(attachError || tooManyImages) && (
           <p role="alert" className="mb-2 text-xs text-destructive">
             {tooManyImages ? t("composer_too_many_images_hint", { count: MAX_ATTACHED_IMAGES }) : attachError}
@@ -290,6 +312,24 @@ export function AgentComposer({
           onDrop={handleDrop}
         >
           <InputGroup ref={groupRef}>
+            {dictation.phase !== "idle" && (
+              <InputGroupAddon align="block-start">
+                <div className="flex min-w-0 flex-col gap-1 text-xs">
+                  <p role="status" className="text-muted-foreground">{t(`chat_dictation_${dictation.phase}`)}</p>
+                  {dictation.partial && <p className="line-clamp-3 wrap-break-word">{dictation.partial}</p>}
+                </div>
+              </InputGroupAddon>
+            )}
+            {shotContext && (
+              <InputGroupAddon align="block-start">
+                <Badge variant="secondary">
+                  {t("chat_shot_context_label", { episode: shotContext.episode, unit: shotContext.unitLabel })}
+                </Badge>
+                <InputGroupButton size="icon-xs" aria-label={t("chat_shot_context_remove")} onClick={() => useAssistantStore.getState().setShotDraftContext(null)}>
+                  <X aria-hidden />
+                </InputGroupButton>
+              </InputGroupAddon>
+            )}
             {hasAttachments && (
               <InputGroupAddon align="block-start">
                 <AttachmentGroup className="w-full">
@@ -356,6 +396,16 @@ export function AgentComposer({
               >
                 <Paperclip aria-hidden />
               </InputGroupButton>
+              {dictation.enabled && <InputGroupButton
+                size="icon-sm"
+                variant={dictation.phase === "recording" ? "outline" : "ghost"}
+                disabled={(disabled && dictation.phase === "idle") || dictation.phase === "processing"}
+                aria-label={t(dictation.phase === "idle" ? "chat_dictation_start" : "chat_dictation_stop")}
+                onClick={dictation.toggle}
+              >
+                {dictation.phase === "recording" ? <Square aria-hidden /> : dictation.phase === "idle" ? <Mic aria-hidden /> : <Loader2 aria-hidden className="animate-spin" />}
+              </InputGroupButton>}
+              {contextControl}
               {sending ? (
                 <Button size="icon-sm" className="ml-auto" disabled aria-label={t("send_message_pending")}>
                   <Loader2 aria-hidden className="animate-spin" />

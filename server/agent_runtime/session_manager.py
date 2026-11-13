@@ -39,6 +39,7 @@ from server.agent_runtime.message_serialization import (
     utc_now_iso,
 )
 from server.agent_runtime.models import (
+    AgentContextUsage,
     Heartbeat,
     LiveMessage,
     QueuedMessage,
@@ -342,6 +343,7 @@ class ManagedSession:
     # 进入 running 的信号计数：送达消息、读到 CLI 报告非 idle 时递增。CLI 报 idle 时记下当时的值，
     # inbox 处理到它时若计数已变，说明其后又有消息送达或 CLI 又开始工作，这个 idle 已过时。
     _running_epoch: int = 0
+    context_usage: tuple[int, AgentContextUsage] | None = None
     # 最近一次读到 CLI 报 idle 时的进入 running 计数；与当前计数相同说明此后没有进入 running 的信号。
     _cli_idle_epoch: int | None = None
     # inbox 已停止处理：actor 仍在读帧，但读到 CLI 开始工作也不再切入 running，否则无人收尾。
@@ -2435,6 +2437,40 @@ class SessionManager:
             yield _iter()
         finally:
             await self._unsubscribe(channel, session_id, queue)
+
+    async def get_context_usage(self, session_id: str) -> AgentContextUsage | None:
+        """Count context on demand for an idle, connected session."""
+        managed = self.sessions.get(session_id)
+        if managed is None or managed.status == "running":
+            return None
+
+        async with managed.send_lock:
+            if managed.status not in {"idle", "completed", "interrupted"} or managed.actor_exited:
+                return None
+            epoch = managed._running_epoch
+            cached = managed.context_usage
+            if cached is not None and cached[0] == epoch:
+                return cached[1]
+
+            command = SessionCommand(type="context_usage")
+            await managed.actor.enqueue(command)
+            await command.done.wait()
+            data = command.context_usage
+            if not data or managed._running_epoch != epoch:
+                return None
+
+            used, limit = data.get("totalTokens"), data.get("maxTokens")
+            if type(used) is not int or type(limit) is not int or used < 0 or limit <= 0:
+                return None
+            threshold = data.get("autoCompactThreshold")
+            compact_at = (
+                threshold
+                if data.get("isAutoCompactEnabled") is True and type(threshold) is int and threshold > 0
+                else None
+            )
+            usage = AgentContextUsage(used, limit, compact_at)
+            managed.context_usage = (epoch, usage)
+            return usage
 
     async def get_status(self, session_id: str) -> SessionStatus | None:
         """Get session status."""

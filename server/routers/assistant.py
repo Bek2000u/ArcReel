@@ -8,7 +8,7 @@ from typing import Literal
 
 logger = logging.getLogger(__name__)
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from fastapi.sse import EventSourceResponse, ServerSentEvent
 from pydantic import BaseModel, Field, field_validator, model_validator
 
@@ -18,7 +18,7 @@ from pydantic_core import PydanticCustomError
 from lib import PROJECT_ROOT
 from lib.infra.api_errors import BadRequestError, ConflictError, NotFoundError, ServiceUnavailableError
 from server.agent_runtime.failure_observation import build_startup_failure_observation
-from server.agent_runtime.models import SessionMeta, WithdrawalIntent
+from server.agent_runtime.models import AgentContextUsage, SessionMeta, WithdrawalIntent
 from server.agent_runtime.service import (
     AssistantService,
     InterruptSettleTimeoutError,
@@ -293,6 +293,16 @@ async def get_session(project_name: str, session_id: str, _t: Translator):
     except Exception as exc:
         logger.exception("请求处理失败")
         raise HTTPException(status_code=500, detail=_t("internal_server_error")) from exc
+
+
+@router.get("/sessions/{session_id}/context")
+async def get_session_context(
+    project_name: str, session_id: str, response: Response, _t: Translator
+) -> AgentContextUsage | None:
+    service = get_assistant_service()
+    await _validate_session_ownership(service, session_id, project_name, _t)
+    response.headers["Cache-Control"] = "no-store"
+    return await service.session_manager.get_context_usage(session_id)
 
 
 @router.delete("/sessions/{session_id}")

@@ -71,6 +71,31 @@ describe("MessageFlow 失败卡片的播报", () => {
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
+  it("用实际工具活动替换等待提示，并在轮次结束后清除提示", async () => {
+    mockSession("running");
+    render(<Panel />);
+    await waitFor(() => expect(FakeSseStream.instances).toHaveLength(1));
+    const stream = FakeSseStream.instances[0];
+
+    act(() => {
+      stream.emit("entry", userEntry(0));
+      stream.emit("draft", { draft: null, rev: 0 });
+    });
+    expect(screen.getByText("等待模型响应")).toBeVisible();
+
+    act(() => stream.emit("entry", {
+      seq: 1,
+      type: "assistant",
+      content: [{ type: "tool_use", id: "tool-read", name: "Read", input: { file_path: "episode_1.txt" } }],
+      uuid: "a-1",
+    }));
+    expect(screen.getByRole("button", { name: /episode_1.txt/ })).toBeVisible();
+    expect(screen.queryByText("等待模型响应")).not.toBeInTheDocument();
+
+    act(() => useAssistantStore.getState().setSessionStatus("completed"));
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  });
+
   it("运行中的会话经 entry 流补发的历史不播报，之后新到达的失败播报", async () => {
     mockSession("running");
     render(<Panel />);

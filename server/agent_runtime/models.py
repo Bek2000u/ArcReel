@@ -10,6 +10,13 @@ SessionStatus = Literal["idle", "running", "completed", "error", "interrupted", 
 
 
 @dataclass(frozen=True, slots=True)
+class AgentContextUsage:
+    used_tokens: int
+    limit_tokens: int
+    compact_at_tokens: int | None
+
+
+@dataclass(frozen=True, slots=True)
 class SubscriptionReady:
     """会话消息流的首个事件：订阅已原子建立的屏障标记。
 

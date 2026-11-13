@@ -1399,6 +1399,46 @@ def _make_managed_for_state_test():
     )
 
 
+@pytest.mark.asyncio
+async def test_context_usage_is_serialized_and_refreshed_after_a_turn(session_manager, monkeypatch):
+    client = FakeSDKClient()
+    actor = SessionActor(client_factory=lambda: client, on_message=lambda msg: None)
+    managed = ManagedSession(session_id="context-test", actor=actor, status="completed")
+    session_manager.sessions[managed.session_id] = managed
+    counts = iter([25_000, 10_000])
+    calls = []
+
+    async def control(request, **kwargs):
+        calls.append((request, kwargs["timeout"], asyncio.current_task()))
+        return {
+            "totalTokens": next(counts),
+            "maxTokens": 100_000,
+            "isAutoCompactEnabled": True,
+            "autoCompactThreshold": 80_000,
+        }
+
+    monkeypatch.setattr(client._query, "_send_control_request", control)
+    await actor.start()
+    try:
+        first, repeated = await asyncio.gather(
+            session_manager.get_context_usage(managed.session_id),
+            session_manager.get_context_usage(managed.session_id),
+        )
+        assert first == repeated == sm_mod.AgentContextUsage(25_000, 100_000, 80_000)
+        assert calls == [({"subtype": "get_context_usage"}, 5.0, actor.task)]
+
+        managed.enter_running()
+        assert await session_manager.get_context_usage(managed.session_id) is None
+        managed.status = "completed"
+        assert await session_manager.get_context_usage(managed.session_id) == sm_mod.AgentContextUsage(
+            10_000, 100_000, 80_000
+        )
+        assert len(calls) == 2
+    finally:
+        await managed.send_disconnect()
+        session_manager.sessions.pop(managed.session_id, None)
+
+
 def test_interrupt_marker_applies_only_to_the_first_result_after_it(session_manager):
     """被中断那一轮的 result 记为中断；排队消息开启的下一轮在收尾之前结束，也按自身结果判定。"""
     managed = _make_managed_for_state_test()

@@ -31,13 +31,14 @@ async def _single_message(message: dict[str, Any]) -> AsyncIterator[dict[str, An
 
 @dataclass
 class SessionCommand:
-    type: Literal["query", "interrupt", "cancel", "disconnect"]
+    type: Literal["query", "interrupt", "cancel", "disconnect", "context_usage"]
     # query 送入 CLI 的用户消息帧（带服务端分配的 uuid）
     message: dict[str, Any] | None = None
     # cancel 要从 CLI 队列撤回的消息 uuid（送入时携带的那个）
     message_uuid: str | None = None
     # cancel 的结果：True 表示已从 CLI 队列撤回，False 表示 CLI 已取走或从未收到这条消息
     cancelled: bool | None = None
+    context_usage: dict[str, Any] | None = None
     session_id: str = "default"
     # disconnect 之前先中断当前轮：会话仍在 running 时由会话层置位
     interrupt_first: bool = False
@@ -225,6 +226,11 @@ class SessionActor:
                 await client.query(_single_message(cmd.message), session_id=cmd.session_id)
             elif cmd.type == "cancel":
                 await self._cancel_message(client, cmd)
+            elif cmd.type == "context_usage":
+                try:
+                    cmd.context_usage = await sdk_frames.read_context_usage(client)
+                except Exception as exc:
+                    cmd.complete(exc)
             else:
                 assert_never(cmd.type)
         except BaseException as exc:

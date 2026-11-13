@@ -68,6 +68,13 @@ export function toolStatus(block: ContentBlock, sessionDone: boolean): WorkStatu
   return sessionDone ? "stopped" : "running";
 }
 
+export function subagentStatus(block: ContentBlock, sessionDone: boolean): WorkStatus {
+  const status = block.task_info?.task_status;
+  if (status === "failed" || block.is_error) return "error";
+  if (status === "completed" || block.result !== undefined) return "ok";
+  return status === "stopped" || sessionDone ? "stopped" : "running";
+}
+
 export type EpisodeRefs = readonly Pick<EpisodeMeta, "episode" | "title" | "script_file">[];
 
 const SUMMARY_JOINER = " · ";

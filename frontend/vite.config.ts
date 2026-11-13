@@ -13,6 +13,10 @@ export default defineConfig({
         host: "0.0.0.0",
         port: 5173,
         proxy: {
+            "/api/v1/dictation": {
+                target: "http://127.0.0.1:1241",
+                ws: true,
+            },
             "/api": {
                 target: "http://127.0.0.1:1241",
                 changeOrigin: true,

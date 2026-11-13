@@ -26,6 +26,7 @@ import type {
   ImagePayload,
   EntriesResponse,
   AcceptedMessageResponse,
+  AgentContextUsage,
   QueuedMessageWithdrawal,
   QueuedMessageResendResponse,
   QueuedMessageWithdrawalResponse,
@@ -3040,6 +3041,14 @@ class API {
       `${this.assistantBase(projectName)}/sessions/${encodeURIComponent(sessionId)}`,
       { signal: options.signal }
     );
+  }
+
+  static async getAssistantContextUsage(
+    projectName: string,
+    sessionId: string,
+    signal: AbortSignal,
+  ): Promise<AgentContextUsage | null> {
+    return this.request(`${this.assistantBase(projectName)}/sessions/${encodeURIComponent(sessionId)}/context`, { signal });
   }
 
   /** 冷读会话事件日志（after 为 seq 游标，-1 表示从头）。 */

@@ -46,6 +46,7 @@ const RECORDINGS: Recording[] = [
   { file: "comfyui-audio-aspect-infer", method: "POST", path: "/api/v1/custom-endpoints/comfyui/infer", json: COMFYUI_AUDIO_ASPECT },
   { file: "auth-status", method: "GET", path: "/api/v1/auth/status", anonymous: true },
   LOGIN,
+  { file: "dictation-status", method: "GET", path: "/api/v1/dictation/status" },
   { file: "system-config", method: "GET", path: "/api/v1/system/config" },
   { file: "providers", method: "GET", path: "/api/v1/providers" },
   { file: "custom-providers", method: "GET", path: "/api/v1/custom-providers" },

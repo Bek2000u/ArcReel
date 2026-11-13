@@ -11,6 +11,7 @@ import { useProjectsStore } from "@/stores/projects-store";
 import type { ImagePayload } from "@/types";
 import { voidCall } from "@/utils/async";
 import { AgentComposer, type AgentComposerHandle } from "./AgentComposer";
+import { AgentContextControl } from "./AgentContextControl";
 import { AgentQuestionnaire } from "./AgentQuestionnaire";
 import { SessionHistory } from "./SessionHistory";
 import { sessionTitle } from "./session-title";
@@ -191,6 +192,14 @@ export function AgentCopilot() {
         running={isRunning}
         sending={sending}
         placeholder={isRunning ? t("dashboard:generating_queue_hint") : t("dashboard:input_placeholder")}
+        contextControl={currentProjectName && currentSessionId && (
+          <AgentContextControl
+            key={currentSessionId}
+            projectName={currentProjectName}
+            sessionId={currentSessionId}
+            busy={isRunning || sending}
+          />
+        )}
         onSend={handleSend}
         onInterrupt={() => voidCall(interrupt())}
         onWithdrawQueued={withdrawQueuedMessage}
