@@ -1273,7 +1273,7 @@ async def test_evicted_remote_history_is_listed_and_deleted_from_the_file_view(a
     record_a, record_b, record_c = _history(project)["versions"]
     assert _cleanup(api)["removed"] == 3  # B、C 的快照与 C 的正式文件
     project_dir = project.get_project_path("demo")
-    snapshot_dir = str(Path(record_b["file"]).parent)
+    snapshot_dir = Path(record_b["file"]).parent.as_posix()
     assert not (project_dir / record_b["file"]).exists()
     calls = len(bucket.calls)
 
@@ -1287,7 +1287,7 @@ async def test_evicted_remote_history_is_listed_and_deleted_from_the_file_view(a
     assert entries[record_a["file"]]["size"] == (project_dir / record_a["file"]).stat().st_size
     [sheet] = [entry for path, entry in _file_view_entries(api, "characters").items() if path.endswith("Alice.png")]
     assert (sheet["role"], sheet.get("remote_only"), sheet["size"]) == ("referenced", True, len(image_c))
-    parent = _file_view_entries(api, str(Path(snapshot_dir).parent))[snapshot_dir]
+    parent = _file_view_entries(api, Path(snapshot_dir).parent.as_posix())[snapshot_dir]
     assert parent["size"] == entries[record_a["file"]]["size"] + len(image_b) + len(image_c)
     assert bucket.calls[calls:] == []  # 列出不触发下载
     assert not (project_dir / record_b["file"]).exists()
@@ -1328,7 +1328,7 @@ async def test_evicted_remote_version_previews_from_the_file_view_and_fetch_fail
     bucket.fail.add("get")
     failed = api.delete("/api/v1/projects/demo/file-view", params={"path": record_b["file"]})
     assert failed.status_code == 502, failed.text
-    assert record_b["file"] in _file_view_entries(api, str(Path(record_b["file"]).parent))
+    assert record_b["file"] in _file_view_entries(api, Path(record_b["file"]).parent.as_posix())
     assert _history(project)["versions"][0] == record_b
     assert api.get("/api/v1/projects/demo/trash").json()["records"] == []
 

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import sys
 from datetime import datetime
 from pathlib import Path
 
@@ -13,6 +12,7 @@ from lib.db.repositories.asset_repo import AssetRepository
 from lib.infra.data_root_layout import DataRootLayout
 from lib.infra.data_root_layout_migration import migrate_data_root_layout
 from lib.project.project_manager import ProjectManager
+from tests.symlink_support import make_symlink
 
 _LEGACY_FILES = (
     "_global_assets/character/hero.png",
@@ -135,13 +135,12 @@ async def test_legacy_files_join_a_library_created_before_migration(
     assert existing.read_bytes() == b"lamp"
 
 
-@pytest.mark.skipif(sys.platform == "win32", reason="symlinks require admin on Windows")
 async def test_symlinked_legacy_library_is_renamed_as_link(
     tmp_path: Path, projects: ProjectManager, session_factory: async_sessionmaker[AsyncSession]
 ) -> None:
     external = tmp_path / "external-library"
     external.mkdir()
-    (projects.data_root / "_global_assets").symlink_to(external, target_is_directory=True)
+    make_symlink(projects.data_root / "_global_assets", external, target_is_directory=True)
     _write_legacy_files(projects)
     asset_ids = await _seed_legacy_records(session_factory)
 

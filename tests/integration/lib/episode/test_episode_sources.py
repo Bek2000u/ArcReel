@@ -16,6 +16,7 @@ from lib.episode.episode_sources import (
     unplanned_text_remains,
     whole_source_files,
 )
+from tests.symlink_support import make_symlink
 
 CHAPTER_A = "第一章少年下山遇见老人。"
 CHAPTER_B = "第二章城里起了大火人群四散。"
@@ -90,7 +91,7 @@ class TestWholeSourceFiles:
         outside = tmp_path / "outside.txt"
         outside.write_text(CHAPTER_B, encoding="utf-8")
         project_dir = _project_dir(tmp_path, **{"a.txt": CHAPTER_A})
-        (project_dir / "source" / "linked.txt").symlink_to(outside)
+        make_symlink(project_dir / "source" / "linked.txt", outside)
         project = {"whole_source_files": _files("linked.txt", "missing.txt", "a.txt")}
 
         assert [doc.rel_path for doc in discover_sources(project_dir, project)] == ["source/a.txt"]

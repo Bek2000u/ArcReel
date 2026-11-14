@@ -1083,7 +1083,7 @@ class TestMediaGenerator:
         paid_history = tmp_path / "paid-history.mp4"
         paid_history.write_bytes(b"paid-history")
         staged = task_video_staging_path(current, "task-symlink")
-        staged.symlink_to(paid_history)
+        make_symlink(staged, paid_history)
 
         cleanup_staged_video_output(
             gen.project_path,
@@ -1461,6 +1461,7 @@ from PIL import Image
 
 from lib.generation.media_generator import _is_413
 from lib.references.reference_compression import LADDER_STEPS, ReferencePayloadFloorError
+from tests.symlink_support import make_symlink
 
 
 def _http_413_error() -> httpx.HTTPStatusError:

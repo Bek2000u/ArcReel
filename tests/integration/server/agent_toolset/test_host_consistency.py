@@ -94,6 +94,7 @@ from server.tool_runtime import (
     get_generation_batch,
 )
 from tests.factories import install_current_video, make_test_clip
+from tests.symlink_support import make_symlink
 
 _ABSENT_REVISION = "sha256-v1:" + "0" * 64
 
@@ -213,10 +214,6 @@ def seeded_projects(tmp_path: Path) -> ProjectManager:
     drafts.mkdir(parents=True)
     (drafts / "script_plan_normalized_script.json").write_text('{"title":"第一集","scenes":[]}', encoding="utf-8")
     (root / "empty").mkdir()
-    outside = tmp_path / "outside"
-    outside.mkdir()
-    (outside / "project.json").write_text("{}", encoding="utf-8")
-    (root / "escape").symlink_to(outside, target_is_directory=True)
     return manager
 
 
@@ -701,8 +698,14 @@ async def test_a_summary_precedes_the_structured_json_in_both_hosts(services: Se
     [pytest.param(None, id="missing"), 7, "", "   ", "../demo", "demo/..", "absent", "empty", "escape"],
 )
 async def test_remote_project_locating_failures_are_invalid_project(
-    declaration: ToolDeclaration[Any, Any], project: object, services: Services
+    declaration: ToolDeclaration[Any, Any], project: object, services: Services, tmp_path: Path
 ) -> None:
+    if project == "escape":
+        outside = tmp_path / "outside"
+        outside.mkdir()
+        (outside / "project.json").write_text("{}", encoding="utf-8")
+        make_symlink(services.projects.projects_dir / "escape", outside, target_is_directory=True)
+
     calls: list[object] = []
     answering = _answering(declaration, ToolOutcome(value={}), calls)
     arguments = dict(SAMPLE_ARGUMENTS[declaration.name])

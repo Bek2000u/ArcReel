@@ -72,6 +72,7 @@ from tests.legacy_project_shapes import (
     write_unreadable_grid_record,
     write_unreadable_script_plan_draft,
 )
+from tests.symlink_support import make_symlink
 
 
 def _read_json(path: Path) -> Any:
@@ -532,7 +533,7 @@ def test_a_copy_does_not_become_the_content_of_an_unreadable_reference(tmp_path:
     target.unlink()
     if occupant == "symlink":
         (project_dir / "outside.bin").write_bytes(b"linked")
-        target.symlink_to(project_dir / "outside.bin")
+        make_symlink(target, project_dir / "outside.bin")
     project_path = project_dir / "project.json"
     project = _read_json(project_path)
     project["schema_version"] = CURRENT_PROJECT_SCHEMA_VERSION - 1
@@ -854,12 +855,12 @@ def test_an_unsafe_shared_sheet_source_is_not_copied_into_a_current_claim(tmp_pa
     if source_link == "file":
         real = source.with_name("real.png")
         source.rename(real)
-        source.symlink_to(real)
+        make_symlink(source, real)
     else:
         directory = source.parent
         real = directory.with_name("real-refs")
         directory.rename(real)
-        directory.symlink_to(real, target_is_directory=True)
+        make_symlink(directory, real, target_is_directory=True)
     claim = _sheet_claim(project_dir, "character", "阿青")
 
     runner.migrate_project_dir(project_dir)
@@ -888,7 +889,7 @@ def test_a_sheet_copy_replaces_the_destination_symlink_without_touching_its_targ
         external.write_bytes(external_bytes)
     target = project_dir / "characters/阿青.png"
     target.unlink()
-    target.symlink_to(external)
+    make_symlink(target, external)
 
     _migrate(project_dir)
 
@@ -913,7 +914,7 @@ def test_a_sheet_copy_does_not_write_through_a_symlink_directory(tmp_path: Path)
     (project_dir / "props/Umbrella.png").write_bytes(b"source")
     outside = tmp_path / "outside"
     (project_dir / "characters").rename(outside)
-    (project_dir / "characters").symlink_to(outside, target_is_directory=True)
+    make_symlink(project_dir / "characters", outside, target_is_directory=True)
     original = project_path.read_bytes()
 
     with pytest.raises(ValueError, match="copy directory is a symlink"):

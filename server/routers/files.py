@@ -14,7 +14,7 @@ import tempfile
 from collections.abc import AsyncIterator, Callable
 from contextlib import ExitStack
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Annotated, Literal
 
 logger = logging.getLogger(__name__)
@@ -339,6 +339,8 @@ async def serve_project_file(
                 file_path = safe_join(project_dir, path)
             except PathTraversalError as exc:
                 raise HTTPException(status_code=403, detail=_t("forbidden_access")) from exc
+            if not is_public_media_path(PurePosixPath(path).parts):
+                raise HTTPException(status_code=404, detail=_t("file_not_found", path=path))
             relative_parts = file_path.relative_to(os.path.realpath(project_dir)).parts
             return project_manager, project_dir, file_path, relative_parts
 
@@ -829,8 +831,8 @@ async def _handle_source_upload(
     except FileNotFoundError as exc:
         # 竞态窗口：get_project_path 通过后项目目录被并发删除，SourceLoader 写入时才炸。
         # 不映射会落到 app 级兜底的泛化 resource_not_found，丢失项目语义。
-        # 仅在项目目录确实消失时转换：tmp 文件/加载器内部的文件缺失不是项目问题，继续上抛
-        if await asyncio.to_thread(project_dir.exists):
+        # 只有项目已不存在时转换；临时文件或加载器内部缺文件仍走原错误。
+        if await asyncio.to_thread(manager.project_exists, project_name):
             raise
         raise NotFoundError("project_not_found", name=project_name) from exc
     except (UnsupportedFormatError, FileSizeExceededError, SourceDecodeError, CorruptFileError) as exc:

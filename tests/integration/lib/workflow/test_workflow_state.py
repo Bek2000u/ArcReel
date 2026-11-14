@@ -41,6 +41,7 @@ from lib.speech.speech_composition import admit_script_unit
 from lib.workflow.workflow_state import WorkflowStateService, planning_docs, workflow_finished
 from server.services.admission.asset_sheet_batch import AssetSheetScope, plan_asset_sheet_batch
 from tests.factories import register_project_sources
+from tests.symlink_support import make_symlink
 
 
 def _make_project(
@@ -480,7 +481,7 @@ def test_unsafe_source_is_an_issue_instead_of_skipping_or_raising(tmp_path: Path
     pm, project_path = _make_project(tmp_path, "narration")
     target = project_path / "target.txt"
     target.write_text("source", encoding="utf-8")
-    (project_path / "source" / "novel.txt").symlink_to(target)
+    make_symlink(project_path / "source" / "novel.txt", target)
     pm.update_project("demo", lambda project: project.update(whole_source_files=[{"source_file": "source/novel.txt"}]))
 
     status = WorkflowStateService(pm).get_status("demo")
@@ -566,7 +567,7 @@ def test_narration_progresses_through_storyboard_video_to_edit(tmp_path: Path) -
     assert ready.content.episode_complete
 
     # 剪辑时间线目录读不了时停在「剪辑」一步并报 issue，不让整个状态查询失败。
-    if os.geteuid() != 0:
+    if hasattr(os, "geteuid") and os.geteuid() != 0:
         edit_root = project_path / "edit_timelines"
         edit_root.chmod(0)
         try:
@@ -1797,7 +1798,7 @@ def test_schema8_manifest_reports_current_stale_missing_and_blocked_without_file
     register_current_artifact(project_path, ArtifactKey.episode_storyboard(1, "E1S01"))
     storyboard_file = project_path / storyboard_path
     storyboard_file.unlink()
-    storyboard_file.symlink_to(project_path / sheet_path)
+    make_symlink(storyboard_file, project_path / sheet_path)
     blocked = WorkflowStateService(pm).get_status("demo")
     assert blocked.artifacts["storyboards"]["state"] == "blocked"
     assert any(item.code == "artifact_symlink" for item in blocked.issues)

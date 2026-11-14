@@ -25,6 +25,7 @@ from lib.agent.profile_manifest import (
     save_manifest,
 )
 from lib.project import project_trash
+from tests.symlink_support import make_symlink
 
 # ---------- enumerate ----------
 
@@ -850,7 +851,7 @@ def test_profile_status_reports_nested_directory_symlink(tmp_path: Path) -> None
     outside = tmp_path / "outside"
     outside.mkdir()
     custom = project / ".claude" / "skills" / "custom"
-    custom.symlink_to(outside, target_is_directory=True)
+    make_symlink(custom, outside, target_is_directory=True)
 
     assert get_profile_status(profile, project, content_mode="narration") == {
         "customized": True,
@@ -866,7 +867,7 @@ def test_profile_status_rejects_symlinked_profile_tree(tmp_path: Path) -> None:
     outside = tmp_path / "outside"
     outside.mkdir()
     (outside / "secret.md").write_text("secret", encoding="utf-8")
-    (project / ".claude").symlink_to(outside, target_is_directory=True)
+    make_symlink(project / ".claude", outside, target_is_directory=True)
 
     with pytest.raises(ValueError, match="profile tree is a symlink"):
         get_profile_status(profile, project, content_mode="narration")

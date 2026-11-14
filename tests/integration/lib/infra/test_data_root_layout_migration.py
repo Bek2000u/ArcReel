@@ -156,7 +156,7 @@ def _write_legacy_user_memory(data_root: Path, user_id: str, files: dict[str, st
     memory_dir = data_root / ".arcreel" / "users" / user_id / "memory"
     memory_dir.mkdir(parents=True)
     for name, body in files.items():
-        (memory_dir / name).write_text(body, encoding="utf-8")
+        (memory_dir / name).write_text(body, encoding="utf-8", newline="\n")
 
 
 def _memory(data_root: Path, user_id: str) -> AgentMemoryStore:

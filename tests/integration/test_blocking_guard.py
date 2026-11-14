@@ -505,7 +505,7 @@ def test_full_run_fails_on_untriggered_exemptions_but_partial_run_does_not(tmp_p
     partial = _run(root, "-k", "offloaded")
 
     assert full.returncode == pytest.ExitCode.TESTS_FAILED, full.stdout
-    assert f"永久豁免未触发，请从 {_EXEMPTIONS} 删除：{stale}" in full.stdout
+    assert f"永久豁免未触发，请从 {_EXEMPTIONS.as_posix()} 删除：{stale}" in full.stdout
     assert partial.returncode == 0, partial.stdout
     assert stale not in partial.stdout
 
@@ -525,7 +525,7 @@ def test_expect_all_exemptions_option_reports_untriggered_exemptions_on_selected
     run = _run(root, "--blocking-guard-expect-all-exemptions", *selection)
 
     assert run.returncode == pytest.ExitCode.TESTS_FAILED, run.stdout
-    assert f"永久豁免未触发，请从 {_EXEMPTIONS} 删除：{stale}" in run.stdout
+    assert f"永久豁免未触发，请从 {_EXEMPTIONS.as_posix()} 删除：{stale}" in run.stdout
 
 
 def test_expect_all_exemptions_option_passes_when_every_exemption_is_triggered(tmp_path: Path):

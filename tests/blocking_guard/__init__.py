@@ -94,6 +94,8 @@ _STDLIB_DIRS = tuple(
 _ALWAYS_ALLOWED_FRAMES: tuple[tuple[str, frozenset[str] | None], ...] = (
     ("posixpath.py", frozenset({"realpath", "_joinrealpath"})),
     ("<frozen posixpath>", frozenset({"realpath", "_joinrealpath"})),
+    ("ntpath.py", frozenset({"realpath"})),
+    ("<frozen ntpath>", frozenset({"realpath"})),
     ("linecache.py", frozenset({"getlines", "updatecache", "checkcache", "lazycache"})),
     ("<frozen importlib._bootstrap>", None),
     ("<frozen importlib._bootstrap_external>", None),
@@ -358,7 +360,9 @@ def _lock_rules(restore: list[Callable[[], None]]) -> list[BlockBusterFunction]:
     restore.append(lambda: setattr(version_manager, "_get_versions_file_lock", original_factory))
 
     rules = [
-        # 项目文件锁、ProjectManager.file_lock、生成准入的同步锁都经 portalocker 阻塞模式落到 flock。
+        # Lock.acquire may wait by retrying nonblocking OS calls.
+        ("文件锁（portalocker 阻塞模式）", BlockBusterFunction(portalocker.Lock, "acquire")),
+        # Direct calls to portalocker.lock can also block.
         (
             "文件锁（portalocker 阻塞模式）",
             BlockBusterFunction(portalocker, "lock", can_block_predicate=portalocker_nonblocking),

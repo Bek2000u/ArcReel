@@ -5,6 +5,7 @@ import pytest
 from lib.project.asset_derivatives import derivative_sheet_relative_path
 from lib.project.asset_fingerprints import compute_asset_fingerprints
 from lib.project.resource_paths import CHARACTER_DERIVATIVE_RESOURCE_TYPE, version_snapshot_relative_path
+from tests.symlink_support import make_symlink
 
 #: 指纹用例里写死的两个 mtime，只要求「不同」，取值本身无意义。
 _MTIME_BEFORE = 1_700_000_000
@@ -134,7 +135,7 @@ class TestComputeAssetFingerprints:
         outside = tmp_path / "outside"
         outside.mkdir()
         (outside / "Hero.png").write_bytes(b"elsewhere")
-        (derivatives / "Hero").symlink_to(outside, target_is_directory=True)
+        make_symlink(derivatives / "Hero", outside, target_is_directory=True)
 
         assert compute_asset_fingerprints(tmp_path) == {}
 
@@ -144,6 +145,6 @@ class TestComputeAssetFingerprints:
         (outside / "refs").mkdir(parents=True)
         (outside / "Hero.png").write_bytes(b"elsewhere")
         (outside / "refs" / "pose.png").write_bytes(b"elsewhere")
-        (tmp_path / "characters").symlink_to(outside, target_is_directory=True)
+        make_symlink(tmp_path / "characters", outside, target_is_directory=True)
 
         assert compute_asset_fingerprints(tmp_path) == {}

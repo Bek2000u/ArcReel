@@ -5,6 +5,7 @@
 
 import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import { dirname, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -13,6 +14,7 @@ import { checkUpdateDocsInventory } from "./update-docs-inventory.mjs";
 
 const websiteDir = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const repoRoot = resolve(websiteDir, "..");
+const require = createRequire(import.meta.url);
 
 function toPosix(path) {
   return path.split(sep).join("/");
@@ -157,7 +159,9 @@ function checkUiJsonKeys() {
   );
 
   try {
-    execFileSync("pnpm", ["exec", "docusaurus", "write-translations", "--locale", "en"], {
+    const manifest = require.resolve("@docusaurus/core/package.json");
+    const cli = resolve(dirname(manifest), require(manifest).bin.docusaurus);
+    execFileSync(process.execPath, [cli, "write-translations", "--locale", "en"], {
       cwd: websiteDir,
       stdio: "pipe",
     });

@@ -49,6 +49,7 @@ from server.tool_runtime import (
     read_project_file,
 )
 from tests.factories import make_video_request_facts
+from tests.symlink_support import make_symlink
 
 
 class _Projects:
@@ -582,7 +583,7 @@ async def test_file_readers_share_a_business_file_allowlist_and_reject_symlinks(
     (project_dir / "scripts" / "episode_1.json").write_text('{"episode":1,"scenes":[]}', encoding="utf-8")
     (drafts / "script_plan_normalized_script.json").write_text('{"title":"第一集","scenes":[]}', encoding="utf-8")
     (project_dir / ".env").write_text("SECRET=value", encoding="utf-8")
-    (project_dir / "source" / "linked.txt").symlink_to(project_dir / ".env")
+    make_symlink(project_dir / "source" / "linked.txt", project_dir / ".env")
     projects = ProjectManager(tmp_path)
     services = Services(projects=projects, workflow_planner=_Planner(_status()), capabilities=_Capabilities())
     scope = ProjectScope("demo", tmp_path)
@@ -648,7 +649,7 @@ async def test_project_file_read_holds_the_checked_file_snapshot(tmp_path: Path,
 
     def _swap_after_open(fd, *args, **kwargs):
         source.unlink()
-        source.symlink_to(outside)
+        make_symlink(source, outside)
         return original_fdopen(fd, *args, **kwargs)
 
     monkeypatch.setattr(tool_runtime.os, "fdopen", _swap_after_open)

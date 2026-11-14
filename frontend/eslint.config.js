@@ -333,6 +333,15 @@ export default tseslint.config(
     files: ["**/*.test.{ts,tsx}"],
     ...tseslint.configs.disableTypeChecked,
   },
+  // The browser loads the AudioWorklet directly from public, outside the TypeScript project.
+  {
+    files: ["public/dictation-processor.js"],
+    ...tseslint.configs.disableTypeChecked,
+    languageOptions: {
+      ...tseslint.configs.disableTypeChecked.languageOptions,
+      globals: { AudioWorkletProcessor: "readonly", sampleRate: "readonly", registerProcessor: "readonly" },
+    },
+  },
   // 测试文件：额外关闭所有 jsx-a11y rule（vitest/testing-library 用 a11y 反例做断言目标）
   {
     files: ["**/*.test.{ts,tsx}"],

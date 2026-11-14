@@ -7,13 +7,14 @@ import time
 from pathlib import Path
 
 from lib.material.work_files import evict_idle_work_file, hold_work_file
+from tests.symlink_support import make_symlink
 
 
 def test_held_file_is_kept_when_cleanup_spells_its_path_through_a_symlink(tmp_path: Path) -> None:
     real_root = tmp_path / "data"
     (real_root / "projects" / "demo" / "characters").mkdir(parents=True)
     linked_root = tmp_path / "linked-data"
-    linked_root.symlink_to(real_root, target_is_directory=True)
+    make_symlink(linked_root, real_root, target_is_directory=True)
     real_file = real_root / "projects" / "demo" / "characters" / "Alice.png"
     real_file.write_bytes(b"image")
     linked_file = linked_root / "projects" / "demo" / "characters" / "Alice.png"

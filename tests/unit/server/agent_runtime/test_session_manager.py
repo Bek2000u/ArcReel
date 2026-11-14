@@ -1,6 +1,8 @@
 import asyncio
+import tempfile
 from contextlib import asynccontextmanager
 from dataclasses import replace
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -985,7 +987,7 @@ class TestSessionManager:
         hook, _, _ = await self._make_sdk_hook_env(tmp_path, meta_store)
 
         # SDK task output path pattern: /tmp/claude-{N}/{encoded}/tasks/{id}.output
-        task_output = "/tmp/claude-0/-app-projects-alpha-abc123/tasks/bdgaof0ba.output"
+        task_output = str(Path(tempfile.gettempdir()) / "claude-0/-app-projects-alpha-abc123/tasks/bdgaof0ba.output")
         result = await hook(
             {"tool_name": "Read", "tool_input": {"file_path": task_output}},
             None,

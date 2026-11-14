@@ -10,6 +10,7 @@ from typing import Any
 import pytest
 from definition_factories import custom_endpoint_definition
 from PIL import Image
+from symlink_support import make_symlink
 
 from arcreel_market_core.market import INDEX_FILENAME, GenerateError, build_index, check_source, write_index
 
@@ -86,7 +87,7 @@ class TestRoundTrip:
         stale = tmp_path / "docs" / "index.json"
         stale.parent.mkdir()
         stale.write_text("{}", encoding="utf-8")
-        (tmp_path / INDEX_FILENAME).symlink_to(stale)
+        make_symlink(tmp_path / INDEX_FILENAME, stale)
 
         write_index(tmp_path, build_index(tmp_path, name="空市场"))
 
@@ -139,7 +140,7 @@ class TestTopLevelFields:
     def test_symlinked_index_header_is_not_read(self, tmp_path: Path, tmp_path_factory: pytest.TempPathFactory):
         outside = tmp_path_factory.mktemp("outside") / INDEX_FILENAME
         outside.write_text(json.dumps({"name": "外部文件里的名字", "entries": []}), encoding="utf-8")
-        (tmp_path / INDEX_FILENAME).symlink_to(outside)
+        make_symlink(tmp_path / INDEX_FILENAME, outside)
 
         assert build_index(tmp_path, default_name="arcreel-market")["name"] == "arcreel-market"
 
@@ -175,26 +176,26 @@ class TestGenerateErrors:
     def test_symlinked_definition_is_rejected(self, tmp_path: Path):
         directory = _add(tmp_path, "demo")
         (directory / "definition.json").rename(directory / "real.json")
-        (directory / "definition.json").symlink_to("real.json")
+        make_symlink(directory / "definition.json", "real.json")
 
         assert self._codes(tmp_path) == [("endpoints/demo/definition.json", "symlink_not_allowed")]
 
     @pytest.mark.parametrize("dangling", [False, True])
     def test_symlinked_icon_is_rejected(self, tmp_path: Path, dangling: bool):
         directory = _add(tmp_path, "demo", real_png=_png())
-        (directory / "icon.png").symlink_to("missing.png" if dangling else "real.png")
+        make_symlink(directory / "icon.png", "missing.png" if dangling else "real.png")
 
         assert self._codes(tmp_path) == [("endpoints/demo/icon.png", "symlink_not_allowed")]
 
     @pytest.mark.parametrize("target", ["real", "missing", "demo"])
     def test_symlinked_entry_directory_is_rejected(self, tmp_path: Path, target: str):
         _add(tmp_path, "real")
-        (tmp_path / "endpoints" / "demo").symlink_to(target, target_is_directory=True)
+        make_symlink(tmp_path / "endpoints" / "demo", target, target_is_directory=True)
 
         assert self._codes(tmp_path) == [("endpoints/demo", "symlink_not_allowed")]
 
     def test_symlinked_endpoints_directory_is_rejected(self, tmp_path: Path):
         _add(tmp_path / "elsewhere", "demo")
-        (tmp_path / "endpoints").symlink_to("elsewhere/endpoints", target_is_directory=True)
+        make_symlink(tmp_path / "endpoints", "elsewhere/endpoints", target_is_directory=True)
 
         assert self._codes(tmp_path) == [("endpoints", "symlink_not_allowed")]

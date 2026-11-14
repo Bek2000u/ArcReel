@@ -27,6 +27,7 @@ from server.routers import project_trash as trash_router
 from tests.auth_deps import override_auth
 from tests.factories import install_current_video, make_test_clip
 from tests.fakes import use_project_manager
+from tests.symlink_support import make_symlink
 
 AGENT = RevisionAuthor(kind="arcreel_agent")
 
@@ -324,7 +325,7 @@ async def test_a_failed_timeline_restore_leaves_the_project_and_the_record_as_th
     # 文档能落回，渲染文件的途经目录却被换成了符号链接
     (tmp_path / "outside").mkdir()
     (project_dir / "renders" / "episode_1").rmdir()
-    (project_dir / "renders" / "episode_1").symlink_to(tmp_path / "outside")
+    make_symlink(project_dir / "renders" / "episode_1", tmp_path / "outside")
     restore = f"/api/v1/projects/demo/trash/{record['id']}/restore"
 
     blocked = await timeline_client.post(restore)

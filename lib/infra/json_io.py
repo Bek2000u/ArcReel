@@ -10,10 +10,12 @@ from contextlib import contextmanager, suppress
 from pathlib import Path
 from typing import Any
 
+from lib.infra.file_io import retry_windows_file_access
+
 
 def load_json(path: Path) -> Any:
     """严格加载 JSON。异常直接抛出，调用方按业务需要做 try/except。"""
-    with open(path, encoding="utf-8") as handle:
+    with retry_windows_file_access(lambda: open(path, encoding="utf-8")) as handle:
         return json.load(handle)
 
 
@@ -67,7 +69,8 @@ def atomic_write_json(path: Path, data: Any) -> None:
             json.dump(data, tmp, ensure_ascii=False, indent=2)
             tmp.flush()
             os.fsync(tmp.fileno())
-        os.replace(tmp_path, path)
+        source = tmp_path
+        retry_windows_file_access(lambda: os.replace(source, path))
         tmp_path = None
     finally:
         if tmp_path is not None:
@@ -94,7 +97,8 @@ def atomic_write_bytes(path: Path, data: bytes) -> None:
             tmp.write(data)
             tmp.flush()
             os.fsync(tmp.fileno())
-        os.replace(tmp_path, path)
+        source = tmp_path
+        retry_windows_file_access(lambda: os.replace(source, path))
         tmp_path = None
     finally:
         if tmp_path is not None:

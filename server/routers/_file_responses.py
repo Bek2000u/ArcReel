@@ -11,6 +11,7 @@ from __future__ import annotations
 import mimetypes
 import os
 from collections.abc import Mapping
+from pathlib import Path
 
 from fastapi import Request, Response
 from fastapi.responses import FileResponse
@@ -32,6 +33,8 @@ def guess_media_type(path: str | os.PathLike[str]) -> str:
 
     进程内首次调用会加载系统 mime 表（读文件），调用方放进工作线程。
     """
+    if Path(path).suffix.lower() == ".webp":
+        return "image/webp"
     return mimetypes.guess_type(path)[0] or "application/octet-stream"
 
 

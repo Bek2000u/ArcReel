@@ -67,6 +67,7 @@ from lib.speech.speech_presentation import (
 )
 from lib.workflow.workflow_state import WorkflowStateService
 from tests.fakes import use_artifact_registration
+from tests.symlink_support import make_symlink
 
 
 def _write_json(path: Path, payload: object) -> None:
@@ -890,7 +891,7 @@ def test_v7_activation_rejects_symlinked_project_control_file_without_writes(tmp
     _write_json(external, project)
     project_path.unlink()
     try:
-        project_path.symlink_to(external)
+        make_symlink(project_path, external)
     except (NotImplementedError, OSError):
         pytest.skip("symlinks are unavailable on this platform")
 

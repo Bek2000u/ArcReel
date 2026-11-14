@@ -16,6 +16,7 @@ from server.error_handlers import register_error_handlers
 from server.routers import file_view
 from tests.auth_deps import AUTH_DEPENDENCIES, override_auth
 from tests.fakes import use_project_manager
+from tests.symlink_support import make_symlink
 
 BASE = "/api/v1/projects/demo/file-view"
 
@@ -157,8 +158,8 @@ def test_symlinks_are_neither_listed_nor_followed(file_view_client, file_view_pr
     outside = tmp_path / "secret"
     outside.mkdir()
     (outside / "key.txt").write_text("secret", encoding="utf-8")
-    (file_view_project_dir / "storyboards/link.png").symlink_to(file_view_project_dir / "storyboards/scene_E1S01.png")
-    (file_view_project_dir / "outside").symlink_to(outside, target_is_directory=True)
+    make_symlink(file_view_project_dir / "storyboards/link.png", file_view_project_dir / "storyboards/scene_E1S01.png")
+    make_symlink(file_view_project_dir / "outside", outside, target_is_directory=True)
 
     assert "outside" not in _entries(file_view_client.get(BASE))
     assert "link.png" not in _entries(file_view_client.get(BASE, params={"path": "storyboards"}))

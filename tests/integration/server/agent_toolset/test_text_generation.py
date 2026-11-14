@@ -38,6 +38,7 @@ from tests.integration.server.agent_tool_support import (
     said,
     use_fake_caps,
 )
+from tests.symlink_support import make_symlink
 
 # ---------------------------------------------------------------------------
 # get_video_capabilities
@@ -1344,7 +1345,7 @@ async def test_normalize_drama_script_treats_a_default_source_symlink_escape_as_
     source_dir.mkdir(parents=True)
     outside = fake_ctx.data_root / "outside.txt"
     outside.write_text("项目外内容", encoding="utf-8")
-    (source_dir / "episode_1.txt").symlink_to(outside)
+    make_symlink(source_dir / "episode_1.txt", outside)
 
     out = await run_declared_tool("generate_script_plan", fake_ctx, {"episode_id": 1, "dry_run": True})
 

@@ -1,8 +1,6 @@
 import dataclasses
 import json
 import os
-import shutil
-import sys
 from io import BytesIO
 from pathlib import Path
 from typing import ClassVar
@@ -42,6 +40,7 @@ from tests.fakes import (
     use_text_generator,
     use_upload_claim_registration,
 )
+from tests.symlink_support import make_symlink
 
 
 class _FakeTextBackend:
@@ -469,7 +468,7 @@ class TestFilesRouter:
         class _RaceLoader:
             @staticmethod
             def load(*args, **kwargs):
-                shutil.rmtree(tmp_path / "projects" / "demo")
+                (tmp_path / "projects" / "demo" / "project.json").unlink()
                 raise FileNotFoundError("/server/projects/demo/source gone")
 
         monkeypatch.setattr(files, "SourceLoader", _RaceLoader)
@@ -1865,14 +1864,6 @@ class TestFilesRouter:
 
     def test_global_asset_symlink_escape_returns_403(self, tmp_path, monkeypatch):
         """在 global_assets/character/ 里放一个指向外部文件的 symlink,应被 resolve-relative 检查拦截为 403。"""
-        import os
-        import sys
-
-        if sys.platform == "win32":
-            import pytest
-
-            pytest.skip("symlinks require admin on Windows")
-
         client, pm = _client(monkeypatch, tmp_path)
 
         # 在 tmp_path 下(但不在 global_assets 里)创建一个外部目标文件
@@ -1883,7 +1874,7 @@ class TestFilesRouter:
         global_dir = pm.get_global_assets_root() / "character"
         global_dir.mkdir(parents=True, exist_ok=True)
         link = global_dir / "evil.png"
-        os.symlink(outside, link)
+        make_symlink(link, outside)
 
         with client:
             r = client.get("/api/v1/global-assets/character/evil.png")
@@ -1987,13 +1978,11 @@ class TestPublicFileRouteServesMediaOnly:
         assert missing.json() == {"detail": not_found.format(path="missing.json")}
 
     def test_media_named_symlink_to_non_media_file_returns_404(self, tmp_path, monkeypatch):
-        if sys.platform == "win32":
-            pytest.skip("symlinks require admin on Windows")
         client, pm = _client(monkeypatch, tmp_path)
         project_dir = pm.get_project_path("demo")
         link = project_dir / "storyboards" / "scene_E1S01.png"
         link.parent.mkdir(parents=True, exist_ok=True)
-        os.symlink(project_dir / "project.json", link)
+        make_symlink(link, project_dir / "project.json")
 
         with client:
             resp = client.get("/api/v1/files/demo/storyboards/scene_E1S01.png")

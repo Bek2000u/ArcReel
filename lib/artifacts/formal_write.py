@@ -72,7 +72,7 @@ def project_metadata_lock(project_dir: Path) -> Generator[None]:
     ensure_task_project_claim(Path(project_dir).name)
     lock_path = Path(project_dir) / ".project.json.lock"
     lock_path.touch(exist_ok=True)
-    with portalocker.Lock(lock_path, flags=portalocker.LOCK_EX):
+    with portalocker.Lock(lock_path, timeout=30, check_interval=0.02):
         yield
 
 

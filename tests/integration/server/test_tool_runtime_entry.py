@@ -38,6 +38,7 @@ from server.tool_runtime import (
     retry_project_migration,
     upload_source,
 )
+from tests.symlink_support import make_symlink
 
 
 class _Unused:
@@ -249,7 +250,7 @@ async def test_upload_source_rejects_symlinked_source_directory(tmp_path: Path) 
     source_dir.rmdir()
     outside = tmp_path / "outside"
     outside.mkdir()
-    source_dir.symlink_to(outside, target_is_directory=True)
+    make_symlink(source_dir, outside, target_is_directory=True)
 
     outcome = await upload_source(
         ToolRequest(UploadSourceRequest(filename="novel.txt", content="hello")),

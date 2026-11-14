@@ -2,6 +2,8 @@
 
 改代码或测试后，开发循环先跑与改动相关的最小测试集；push 前再跑 `AGENTS.md` 中受影响域的完整闸门。
 
+在 Windows PowerShell 中也可直接运行闸门，例如 `uv run python scripts/gate.py backend tests conventions frontend`。前端和文档站使用各自 `package.json` 的 `packageManager` 版本，`pnpm.cmd` 需在 `PATH` 上。Windows 后端闸门在仓库的 `tmp/` 下为 pytest 分配短路径，避免长路径影响媒体与迁移用例。确实需要创建符号链接的用例会在 Windows 拒绝该权限时单独跳过。
+
 ## 选择相关测试
 
 选择结果为 0 个测试时，扩大到对应目录或完整测试集；0 个测试不算验证通过。

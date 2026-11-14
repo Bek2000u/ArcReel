@@ -44,6 +44,7 @@ from tests.integration.server.services.tasks.generation_tasks_support import (
     register_stale_visual_claim,
     seed_current_storyboard,
 )
+from tests.symlink_support import make_symlink
 
 
 class TestGenerationTasks:
@@ -941,7 +942,7 @@ class TestGenerationTasks:
         end_frame_dir = project_path / "end_frames"
         end_frame_dir.mkdir(parents=True, exist_ok=True)
         (end_frame_dir / "scene_E1S02.png").write_bytes(b"png")
-        (end_frame_dir / "scene_E1S01.png").symlink_to(end_frame_dir / "scene_E1S02.png")
+        make_symlink(end_frame_dir / "scene_E1S01.png", end_frame_dir / "scene_E1S02.png")
         fake_pm = _FakePM(project_path)
         seed_current_storyboard(fake_pm)
         fake_generator = FakeGenerator()
@@ -969,7 +970,7 @@ class TestGenerationTasks:
         real_dir = project_path / "storyboards_end_frames_swap"
         real_dir.mkdir(parents=True, exist_ok=True)
         (real_dir / "scene_E1S01.png").write_bytes(b"png")
-        (project_path / "end_frames").symlink_to(real_dir)
+        make_symlink(project_path / "end_frames", real_dir)
         fake_pm = _FakePM(project_path)
         seed_current_storyboard(fake_pm)
         fake_generator = FakeGenerator()

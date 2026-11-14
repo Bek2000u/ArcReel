@@ -496,9 +496,10 @@ class ProjectArchiveService:
         if not self.project_manager.project_exists(project_name):
             raise FileNotFoundError(f"项目 '{project_name}' 不存在或未初始化")
 
-        temp_dir, _, _, diagnostics = self._prepare_export_snapshot(project_name, scope=scope)
-        temp_dir.cleanup()
-        return diagnostics.to_export_payload(translate)
+        with tempfile.TemporaryDirectory(prefix="arcreel-export-") as temp_dir:
+            snapshot_dir = Path(temp_dir) / project_name
+            _, diagnostics = self._prepare_export_snapshot(project_name, snapshot_dir, scope=scope)
+            return diagnostics.to_export_payload(translate)
 
     def export_project(
         self,
@@ -517,17 +518,20 @@ class ProjectArchiveService:
         os.close(fd)
         archive_path = Path(archive_path_str)
 
-        temp_dir: tempfile.TemporaryDirectory[str] | None = None
         try:
-            temp_dir, snapshot_dir, manifest, _ = self._prepare_export_snapshot(project_name, scope=scope)
-            archived_links = self._archived_links(project_name, snapshot_dir, scope)
-            if archived_links:
-                manifest[ARCHIVED_LINKS_KEY] = [link.to_payload() for link in archived_links]
-            with zipfile.ZipFile(
-                archive_path,
-                mode="w",
-                compression=zipfile.ZIP_DEFLATED,
-            ) as archive:
+            with (
+                tempfile.TemporaryDirectory(prefix="arcreel-export-") as temp_dir,
+                zipfile.ZipFile(
+                    archive_path,
+                    mode="w",
+                    compression=zipfile.ZIP_DEFLATED,
+                ) as archive,
+            ):
+                snapshot_dir = Path(temp_dir) / project_name
+                manifest, _ = self._prepare_export_snapshot(project_name, snapshot_dir, scope=scope)
+                archived_links = self._archived_links(project_name, snapshot_dir, scope)
+                if archived_links:
+                    manifest[ARCHIVED_LINKS_KEY] = [link.to_payload() for link in archived_links]
                 self._write_directory_entry(archive, (project_name,))
                 archive.writestr(
                     f"{project_name}/{ARCHIVE_MANIFEST_NAME}",
@@ -546,10 +550,6 @@ class ProjectArchiveService:
         except Exception:
             archive_path.unlink(missing_ok=True)  # hard-delete: temp -- 导出失败的半成品归档
             raise
-        finally:
-            if temp_dir is not None:
-                temp_dir.cleanup()
-
         download_name = f"{project_name}-{datetime.now().strftime('%Y%m%d-%H%M%S')}.zip"
         return archive_path, download_name
 
@@ -873,18 +873,13 @@ class ProjectArchiveService:
     def _prepare_export_snapshot(
         self,
         project_name: str,
+        snapshot_dir: Path,
         *,
         scope: str,
-    ) -> tuple[tempfile.TemporaryDirectory[str], Path, dict[str, Any], ArchiveDiagnostics]:
+    ) -> tuple[dict[str, Any], ArchiveDiagnostics]:
         source_dir = self.project_manager.get_project_path(project_name)
-        temp_dir = tempfile.TemporaryDirectory(prefix="arcreel-export-")
-        snapshot_dir = Path(temp_dir.name) / project_name
         source_manifest_entries = self._capture_stable_visible_tree(source_dir, snapshot_dir)
-        try:
-            self._verify_remote_content(snapshot_dir, scope)
-        except BaseException:
-            temp_dir.cleanup()
-            raise
+        self._verify_remote_content(snapshot_dir, scope)
         snapshot_versions_path = snapshot_dir / "versions" / "versions.json"
         snapshot_versions = self._load_json_file(snapshot_versions_path)
         if isinstance(snapshot_versions, dict) and self._drop_remote_locators(snapshot_versions):
@@ -928,7 +923,7 @@ class ProjectArchiveService:
             pass_through_entries=excluded_entries,
             artifact_manifest=artifact_manifest,
         )
-        return temp_dir, snapshot_dir, manifest, diagnostics
+        return manifest, diagnostics
 
     def _build_archive_manifest(
         self,

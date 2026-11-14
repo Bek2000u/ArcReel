@@ -31,6 +31,7 @@ from lib.artifacts.artifact_manifest import (
 )
 from lib.artifacts.visual_artifact_provenance import visual_file_digest
 from tests.integration.lib.manifest_parse_support import count_manifest_parses
+from tests.symlink_support import make_symlink
 
 _RUNTIME_FIFO_COMPARISON = """
 import json
@@ -697,8 +698,8 @@ def test_project_adapter_blocks_escape_and_symlink_artifact_paths(
     project.mkdir()
     outside = tmp_path / "outside.json"
     outside.write_text('{"secret":true}', encoding="utf-8")
-    (project / "linked-file.json").symlink_to(outside)
-    (project / "linked-dir").symlink_to(tmp_path, target_is_directory=True)
+    make_symlink(project / "linked-file.json", outside)
+    make_symlink(project / "linked-dir", tmp_path, target_is_directory=True)
     manifest = ArtifactManifest(
         ProjectArtifactManifestAdapter(project, nofollow_supported=not force_python_link_fallback)
     )
@@ -756,7 +757,7 @@ def test_project_adapter_blocks_parent_replaced_by_symlink_during_open(
         opens_final_by_path = Path(path_text) == scripts / "episode.json"
         if not swapped and (opens_parent_by_fd or opens_final_by_path):
             scripts.rename(project / "original-scripts")
-            scripts.symlink_to(outside, target_is_directory=True)
+            make_symlink(scripts, outside, target_is_directory=True)
             swapped = True
         return original_open(path, flags, mode, dir_fd=dir_fd)
 
@@ -800,7 +801,7 @@ def test_project_adapter_blocks_file_symlink_swap_without_no_follow(
         nonlocal swapped
         if not swapped and dir_fd is not None and os.fsdecode(path) == "episode.json":
             artifact.rename(project / "original-episode.json")
-            artifact.symlink_to(outside)
+            make_symlink(artifact, outside)
             swapped = True
         return original_open(path, flags, mode, dir_fd=dir_fd)
 
@@ -991,7 +992,7 @@ def test_project_adapter_rejects_replaced_portable_project_root(tmp_path: Path) 
     outside = tmp_path / "outside"
     outside.mkdir()
     (outside / "episode.json").write_text("outside", encoding="utf-8")
-    project.symlink_to(outside, target_is_directory=True)
+    make_symlink(project, outside, target_is_directory=True)
 
     observation = adapter._inspect_artifact_portable("episode.json")
 
@@ -1069,7 +1070,7 @@ def test_project_adapter_rejects_project_root_symlink_swap_during_initialization
         nonlocal swapped
         if not swapped and path == project:
             project.rename(original_project)
-            project.symlink_to(outside, target_is_directory=True)
+            make_symlink(project, outside, target_is_directory=True)
             swapped = True
         return original_resolve(path, strict=strict)
 
@@ -1102,7 +1103,7 @@ def test_project_adapter_rejects_replaced_posix_project_root_symlink_without_no_
     adapter = ProjectArtifactManifestAdapter(project, nofollow_supported=False)
     original_project = tmp_path / "original-project"
     project.rename(original_project)
-    project.symlink_to(original_project, target_is_directory=True)
+    make_symlink(project, original_project, target_is_directory=True)
 
     observation = adapter.inspect_artifact("episode.json")
 
@@ -1139,7 +1140,7 @@ def test_project_adapter_rejects_swapped_portable_parent(
         nonlocal swapped
         if not swapped and dir_fd is None and Path(os.fsdecode(path)) == scripts / "episode.json":
             scripts.rename(moved_scripts)
-            scripts.symlink_to(outside, target_is_directory=True)
+            make_symlink(scripts, outside, target_is_directory=True)
             swapped = True
         return original_open(path, flags, mode, dir_fd=dir_fd)
 
@@ -1186,7 +1187,7 @@ def test_project_adapter_keeps_manifest_write_on_opened_root_during_swap(
         )
         if not swapped and opens_target_lock:
             project.rename(moved_project)
-            project.symlink_to(outside, target_is_directory=True)
+            make_symlink(project, outside, target_is_directory=True)
             swapped = True
         return original_open(path, flags, mode, dir_fd=dir_fd)
 
@@ -1217,7 +1218,7 @@ def test_project_adapter_refuses_runtime_file_symlinks(
     artifact.write_text("{}", encoding="utf-8")
     outside = tmp_path / "outside.json"
     outside.write_text("do not touch", encoding="utf-8")
-    (project / runtime_path).symlink_to(outside)
+    make_symlink(project / runtime_path, outside)
     manifest = ArtifactManifest(
         ProjectArtifactManifestAdapter(project, nofollow_supported=not force_python_link_fallback)
     )
@@ -1262,7 +1263,7 @@ def test_project_adapter_rejects_portable_manifest_symlink_swap(
         nonlocal swapped
         if not swapped and dir_fd is None and Path(os.fsdecode(path)) == manifest_path:
             manifest_path.rename(project / "original-manifest.json")
-            manifest_path.symlink_to(outside)
+            make_symlink(manifest_path, outside)
             swapped = True
         return original_open(path, flags, mode, dir_fd=dir_fd)
 
@@ -1303,7 +1304,7 @@ def test_project_adapter_rejects_manifest_symlink_swap_without_no_follow(
         nonlocal swapped
         if not swapped and dir_fd is not None and os.fsdecode(path) == MANIFEST_FILENAME:
             manifest_path.rename(project / "original-manifest.json")
-            manifest_path.symlink_to(outside)
+            make_symlink(manifest_path, outside)
             swapped = True
         return original_open(path, flags, mode, dir_fd=dir_fd)
 
@@ -1346,7 +1347,7 @@ def test_project_adapter_rejects_lock_symlink_swap_without_no_follow(
         nonlocal swapped
         if not swapped and dir_fd is not None and os.fsdecode(path) == LOCK_FILENAME:
             lock_path.rename(project / "original-lock")
-            lock_path.symlink_to(outside)
+            make_symlink(lock_path, outside)
             swapped = True
         return original_open(path, flags, mode, dir_fd=dir_fd)
 
@@ -1539,8 +1540,9 @@ def test_project_adapter_hashes_content_through_a_binary_descriptor(
     project.mkdir()
     payload = b'{"a":1}\r\n\x1a{"trailing":2}\r\n'
     (project / "episode.json").write_bytes(payload)
-    fake_binary_flag = 0x8000
-    monkeypatch.setattr(os, "O_BINARY", fake_binary_flag, raising=False)
+    system_binary_flag = getattr(os, "O_BINARY", 0)
+    binary_flag = system_binary_flag or 0x8000
+    monkeypatch.setattr(os, "O_BINARY", binary_flag, raising=False)
     original_open = os.open
     open_flags: dict[str, list[int]] = {"episode.json": [], MANIFEST_FILENAME: []}
 
@@ -1549,7 +1551,8 @@ def test_project_adapter_hashes_content_through_a_binary_descriptor(
         if name in open_flags:
             open_flags[name].append(flags)
         # 假标志位只用于观察请求，真实 POSIX open 不认识它。
-        return original_open(path, flags & ~fake_binary_flag, mode, dir_fd=dir_fd)
+        open_flags_for_system = flags if system_binary_flag else flags & ~binary_flag
+        return original_open(path, open_flags_for_system, mode, dir_fd=dir_fd)
 
     monkeypatch.setattr("lib.artifacts.artifact_manifest.os.open", record_open)
     adapter = ProjectArtifactManifestAdapter(project, nofollow_supported=False)
@@ -1567,7 +1570,7 @@ def test_project_adapter_hashes_content_through_a_binary_descriptor(
 
     for name, recorded in open_flags.items():
         assert recorded, name
-        assert all(flags & fake_binary_flag for flags in recorded), (name, recorded)
+        assert all(flags & binary_flag for flags in recorded), (name, recorded)
 
 
 def test_project_adapter_content_digest_matches_visual_file_digest(tmp_path: Path) -> None:

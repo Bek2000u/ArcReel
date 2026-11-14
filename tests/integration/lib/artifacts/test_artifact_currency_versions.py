@@ -17,6 +17,7 @@ from lib.project.resource_paths import resource_relative_path
 from tests.integration.lib.episode_media_support import episodes_with_media
 from tests.integration.lib.manifest_parse_support import count_versions_parses
 from tests.integration.lib.workflow.test_workflow_state import _make_project
+from tests.symlink_support import make_symlink
 
 
 def _compare_video(resolver: ArtifactCurrencyResolver, episode: int) -> ArtifactStatus:
@@ -88,7 +89,7 @@ def test_blocked_versions_are_refused_for_the_next_episode(
     versions_path = two_episode_project / "versions" / "versions.json"
     real_path = versions_path.with_name("versions.real.json")
     versions_path.rename(real_path)
-    versions_path.symlink_to(real_path.name)
+    make_symlink(versions_path, real_path.name)
 
     with pytest.raises(ArtifactManifestError):
         _compare_video(resolver_after_first_episode, 2)

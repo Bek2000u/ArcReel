@@ -30,6 +30,7 @@ from lib.script.reference_video.execution_checkpoint import (
     stage_provider_media,
 )
 from lib.speech.speech_artifact_provenance import build_video_duration_basis
+from tests.symlink_support import make_symlink
 
 
 def _reference_visual_basis(unit_id: str) -> ArtifactBasis:
@@ -256,7 +257,7 @@ def test_cleanup_unlinks_provider_media_symlink_without_deleting_its_target(tmp_
     task_dir = project_path / ".arcreel" / "tasks" / "task-1"
     task_dir.mkdir(parents=True)
     staging_link = task_dir / "provider_media"
-    staging_link.symlink_to(paid_history, target_is_directory=True)
+    make_symlink(staging_link, paid_history, target_is_directory=True)
 
     cleanup_staged_provider_media(project_path, "task-1")
 
@@ -295,7 +296,7 @@ def test_cleanup_does_not_traverse_a_symlinked_task_ancestor(tmp_path: Path) -> 
     tasks_dir = project_path / ".arcreel" / "tasks"
     tasks_dir.mkdir(parents=True)
     task_link = tasks_dir / "task-1"
-    task_link.symlink_to(paid_history, target_is_directory=True)
+    make_symlink(task_link, paid_history, target_is_directory=True)
 
     cleanup_staged_provider_media(project_path, "task-1")
 

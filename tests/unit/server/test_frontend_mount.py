@@ -152,7 +152,7 @@ async def test_hashed_assets_are_immutable_but_unhashed_public_files_are_not(
     (dist_dir / "assets").mkdir(parents=True)
     (dist_dir / "index.html").write_text("<html>shell</html>", encoding="utf-8")
     bundle = "console.log('arcreel');\n" * 200
-    (dist_dir / "assets" / "index-abc123.js").write_text(bundle, encoding="utf-8")
+    (dist_dir / "assets" / "index-abc123.js").write_text(bundle, encoding="utf-8", newline="\n")
     (dist_dir / "favicon.svg").write_text("<svg/>", encoding="utf-8")
     monkeypatch.setattr(lib, "PROJECT_ROOT", tmp_path)
     importlib.reload(app_module)

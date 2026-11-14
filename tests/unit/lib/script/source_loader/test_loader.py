@@ -9,6 +9,7 @@ from lib.script.source_loader.errors import (
     FileSizeExceededError,
     UnsupportedFormatError,
 )
+from tests.symlink_support import make_symlink
 
 
 def test_load_txt_utf8_no_raw_backup(tmp_path: Path):
@@ -126,7 +127,7 @@ def test_load_on_conflict_replace_rejects_symlinked_target(tmp_path: Path):
     project_source.mkdir()
     outside = tmp_path / "outside.txt"
     outside.write_text("不可改写", encoding="utf-8")
-    (project_source / "novel.txt").symlink_to(outside)
+    make_symlink(project_source / "novel.txt", outside)
     src = tmp_path / "novel.txt"
     src.write_text("新内容", encoding="utf-8")
 

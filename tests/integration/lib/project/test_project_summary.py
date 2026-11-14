@@ -60,6 +60,7 @@ from tests.integration.lib.workflow.test_workflow_state import (
     _write_registered_script,
     _write_source,
 )
+from tests.symlink_support import make_symlink
 
 
 def _plan_one_episode(pm: ProjectManager, project_path: Path, source_text: str) -> None:
@@ -772,7 +773,7 @@ def test_video_swapped_after_admission_is_judged_by_the_newer_observation(
             formal = project_path / video_path
             formal.unlink()
             if swap == "symlinked":
-                formal.symlink_to(outside)
+                make_symlink(formal, outside)
         return observation
 
     resolver = ArtifactCurrencyResolver(project_path)

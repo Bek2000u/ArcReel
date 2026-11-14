@@ -1471,7 +1471,9 @@ def drama_script_plan_result_text(script_plan_path: Path, scenes: list[dict], *,
     """drama script_plan 的落盘回执。``action`` 是「生成」/「晋升」——两条路的统计段同一出口，
     只在动作词上分叉，Agent 因此按同一种格式读产出与晋升两次结果。
     """
-    return f"✅ 规范化剧本{action}（结构化内容）已保存: {script_plan_path}\n📊 生成统计: {len(scenes)} 个分镜"
+    return (
+        f"✅ 规范化剧本{action}（结构化内容）已保存: {script_plan_path.as_posix()}\n📊 生成统计: {len(scenes)} 个分镜"
+    )
 
 
 def narration_script_plan_result_text(script_plan_path: Path, segments: list[dict], *, action: str) -> str:
@@ -1480,7 +1482,7 @@ def narration_script_plan_result_text(script_plan_path: Path, segments: list[dic
     total_seconds = sum(int(segment.get("duration_seconds") or 0) for segment in segments)
     break_count = sum(1 for segment in segments if segment.get("segment_break"))
     return (
-        f"✅ 旁白/解说分镜{action}（结构化 script_plan）已保存: {script_plan_path}\n"
+        f"✅ 旁白/解说分镜{action}（结构化 script_plan）已保存: {script_plan_path.as_posix()}\n"
         f"📊 生成统计: {len(segments)} 个分镜 / {total_chars} 字，"
         f"预计总时长 {total_seconds} 秒；segment_break 标记 {break_count} 个"
     )
@@ -1499,7 +1501,7 @@ def reference_result_text(script_plan_path: Path, units: list[dict], soft_violat
     total_seconds = sum(int(u.get("duration_seconds") or 0) for u in units)
     max_unit_refs = max(len(extract_mentions(str(u.get("text") or ""))) for u in units)
     text = (
-        f"✅ 视频单元{action}（结构化 script_plan）已保存: {script_plan_path}\n"
+        f"✅ 视频单元{action}（结构化 script_plan）已保存: {script_plan_path.as_posix()}\n"
         f"📊 生成统计: {len(units)} 个 unit，总时长 {total_seconds} 秒；"
         f"单 unit `@` 提及最多 {max_unit_refs} 个"
     )

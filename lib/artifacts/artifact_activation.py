@@ -598,7 +598,10 @@ def _ensure_activation_backup(source: Path, *, stamp: int, from_version: int) ->
         try:
             if candidate.read_bytes() == content:
                 try:
-                    os.utime(candidate, None, follow_symlinks=False)
+                    if os.utime in os.supports_follow_symlinks:
+                        os.utime(candidate, None, follow_symlinks=False)
+                    else:
+                        atomic_write_bytes(candidate, content)
                 except (NotImplementedError, OSError):
                     continue
                 return

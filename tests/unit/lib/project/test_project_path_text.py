@@ -5,13 +5,14 @@ from __future__ import annotations
 from pathlib import Path, PurePosixPath, PureWindowsPath
 
 from lib.project.project_path_text import project_path_spellings, relativize_project_paths
+from tests.symlink_support import make_symlink
 
 
 def test_relativize_rewrites_both_the_given_and_the_resolved_project_dir(tmp_path: Path) -> None:
     real = tmp_path / "real" / "projects" / "demo"
     real.mkdir(parents=True)
     alias = tmp_path / "alias"
-    alias.symlink_to(tmp_path / "real", target_is_directory=True)
+    make_symlink(alias, tmp_path / "real", target_is_directory=True)
     project_dir = alias / "projects" / "demo"
     spellings = project_path_spellings(project_dir)
 

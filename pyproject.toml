@@ -53,6 +53,7 @@ dependencies = [
     # 1.x 改用 httpx2，respx 与基于 httpx 的自定义 transport 拦截不到；约束见 docs/agents/dependencies.md。
     "anthropic>=0.125.0,<1",
     "tos>=2.9.3",
+    "tzdata>=2026.6 ; sys_platform == 'win32'",
 ]
 
 [dependency-groups]
@@ -100,9 +101,7 @@ asyncio_mode = "auto"
 # 卡死保护，不是耗时预算：当前最慢用例 30s，留 4 倍余量。个别用例需要更大预算时用
 # `@pytest.mark.timeout(N)` 单独放宽，不抬全局值。
 timeout = 120
-# signal 法对 async 与 sync 用例均生效，超时表现为普通 failure（会话继续、teardown
-# 正常、可归因）；thread 法以 os._exit 硬杀进程，xdist 下等价于 worker crash。
-timeout_method = "signal"
+# pytest-timeout 按平台选择：支持 SIGALRM 时用 signal，否则用 thread。
 # 并行不写进 addopts，只在 CI 命令里显式开（-n 4 --dist loadfile）：小选集并行更慢，
 # 每 worker 重新 import server.app 的固定开销吃掉全部收益，而本地调试几乎都是小选集。
 markers = [
@@ -320,6 +319,7 @@ DEP002 = [
     "lxml",             # BeautifulSoup 的 lxml / lxml-xml 解析器后端
     "mutmut",           # 变异测试 CLI，源码不 import 它；变异后的模块只在 mutants/ 副本里 import
     "pytest-testmon",   # pytest 插件，经 entry point 加载；按改动选测试，用法见 docs/agents/testing.md
+    "tzdata",          # zoneinfo 在 Windows 上按资源包读取 IANA 时区数据库
 ]
 # DEP004（import 了 dev 依赖）——tests/ 与 scripts/ 在扫描范围内，deptry 无法按目录区分
 # dev 与生产文件，故逐项列出它们正当 import 的测试框架包；其余 dev 依赖仍受本规则守护。

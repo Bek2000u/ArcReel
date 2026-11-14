@@ -27,6 +27,8 @@ export default defineConfig({
   },
   test: {
     environment: "jsdom",
+    // Limit VM workers on Windows, where concurrent jsdom startup can exhaust test timeouts.
+    maxWorkers: process.platform === "win32" ? 6 : undefined,
     setupFiles: ["src/test/setup.ts"],
     restoreMocks: true,
     clearMocks: true,

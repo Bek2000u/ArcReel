@@ -1452,8 +1452,7 @@ class ProjectManager:
             # 存在性检查只对文件系统这条路径成立；剧本是否存在由实际读取方判定。
             if not real.exists():
                 raise FileNotFoundError(f"剧本文件不存在: {real}")
-            with open(real, encoding="utf-8") as f:
-                script = json.load(f)
+            script = load_json(real)
         else:
             script = self._script_reader(real)
 
@@ -2088,7 +2087,7 @@ class ProjectManager:
         path.parent.mkdir(parents=True, exist_ok=True)
         lock_path = path.parent / f".{path.name}.lock"
         lock_path.touch(exist_ok=True)
-        with portalocker.Lock(lock_path, flags=portalocker.LOCK_EX):
+        with portalocker.Lock(lock_path, timeout=30, check_interval=0.02):
             yield
 
     @contextmanager

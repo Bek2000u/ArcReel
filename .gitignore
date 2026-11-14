@@ -69,6 +69,7 @@ frontend/playwright-report/
 .superpowers/
 
 # Test coverage
+/tmp/
 htmlcov/
 .coverage
 coverage/

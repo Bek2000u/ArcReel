@@ -95,7 +95,7 @@ class TestAdoptSourceFile:
 
     def test_using_a_file_as_a_new_episode_moves_its_text_into_the_episode_file(self, tmp_path, monkeypatch):
         client, pm, source_dir = _client(monkeypatch, tmp_path, episodes=[_entry(3, "none")], episode_id_high_water=3)
-        (source_dir / "番外.txt").write_text("番外原文\r\n第二行", encoding="utf-8")
+        (source_dir / "番外.txt").write_text("番外原文\r\n第二行", encoding="utf-8", newline="\n")
 
         with client:
             resp = client.post("/api/v1/projects/demo/source-files/番外.txt/adopt", json={"target": "episode"})

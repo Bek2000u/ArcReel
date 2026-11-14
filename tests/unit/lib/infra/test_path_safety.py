@@ -1,7 +1,6 @@
 """path_safety：项目目录内路径包含校验，防穿越 + 脏数据容错。"""
 
 import os
-import sys
 from pathlib import Path
 from typing import Any, cast
 
@@ -13,6 +12,7 @@ from lib.infra.path_safety import (
     safe_join,
     try_safe_join,
 )
+from tests.symlink_support import make_symlink
 
 
 def test_existing_relative_path(tmp_path: Path):
@@ -108,14 +108,13 @@ def test_safe_join_require_file_rejects_dir(tmp_path: Path):
         safe_join(tmp_path, "d", require_file=True)
 
 
-@pytest.mark.skipif(sys.platform == "win32", reason="symlinks require admin on Windows")
 def test_safe_join_rejects_symlink_escape(tmp_path: Path):
     base = tmp_path / "base"
     base.mkdir()
     outside = tmp_path / "outside.txt"
     outside.write_text("secret", encoding="utf-8")
     link = base / "link.txt"
-    os.symlink(outside, link)
+    make_symlink(link, outside)
     # symlink 指向 base 外：realpath 展开后越界，拒绝
     with pytest.raises(PathTraversalError):
         safe_join(base, "link.txt")

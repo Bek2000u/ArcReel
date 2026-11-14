@@ -34,6 +34,7 @@ from lib.episode.episode_reset import EpisodeResetResult, reset_episode_planning
 from lib.episode.episode_sources import discover_sources as _real_discover_sources
 from lib.episode.episode_sources import planning_start, source_snapshot_path
 from lib.infra.text_metrics import count_reading_units
+from tests.symlink_support import make_symlink
 
 # 源文：三段剧情，句子互不重复，锚点可唯一定位
 SOURCE = (
@@ -1848,7 +1849,7 @@ class TestEpisodeFileWrites:
         project_dir = _write_project(tmp_path, episodes=[])
         outside = tmp_path / "outside.txt"
         outside.write_text("外部文件", encoding="utf-8")
-        (project_dir / "source" / "episode_1.txt").symlink_to(outside)
+        make_symlink(project_dir / "source" / "episode_1.txt", outside)
         fake = _FakeTextGenerator([_plan_response(_THREE_EPISODE_DRAFT)])
 
         await EpisodePlanner(project_dir, generator=fake).plan()

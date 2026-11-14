@@ -42,6 +42,7 @@ from server.tool_runtime import Services, TextGenerationResult
 from tests.factories import install_current_video, make_test_clip, make_video_request_facts, register_project_sources
 from tests.fakes import refuse_resume_execution
 from tests.integration.server.agent_tool_support import ToolHarness
+from tests.symlink_support import make_symlink
 
 
 class _Planner:
@@ -109,10 +110,6 @@ def remote_projects(tmp_path: Path) -> ProjectManager:
     )
     activate_artifact_target_state(project_dir, bump_schema=False)
     (projects_root / "empty").mkdir()
-    outside = tmp_path / "outside"
-    outside.mkdir()
-    (outside / "project.json").write_text("{}", encoding="utf-8")
-    (projects_root / "escape").symlink_to(outside, target_is_directory=True)
 
     return manager
 
@@ -370,11 +367,7 @@ async def test_remote_mcp_returns_typed_workflow_plan_and_rejects_bad_project(
         traversal = await session.call_tool("get_workflow_plan", {"project": "../demo", "episode_id": 1})
         nonexistent = await session.call_tool("get_workflow_plan", {"project": "absent", "episode_id": 1})
         empty = await session.call_tool("get_workflow_plan", {"project": "empty", "episode_id": 1})
-        escape = await session.call_tool("get_workflow_plan", {"project": "escape", "episode_id": 1})
         declared_missing = await session.call_tool("get_source_text", {"path": "source/episode_1.txt"})
-        declared_escape = await session.call_tool(
-            "get_source_text", {"project": "escape", "path": "source/episode_1.txt"}
-        )
 
     assert not result.isError
     migrated = {
@@ -478,11 +471,40 @@ async def test_remote_mcp_returns_typed_workflow_plan_and_rejects_bad_project(
     assert traversal.isError
     assert nonexistent.isError
     assert empty.isError
+    assert declared_missing.isError
+    assert declared_missing.structuredContent is not None
+    assert declared_missing.structuredContent["problem"]["code"] == "invalid_project"
+
+
+async def test_remote_mcp_rejects_project_symlink(
+    remote_server, remote_projects: ProjectManager, tmp_path: Path
+) -> None:
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (outside / "project.json").write_text("{}", encoding="utf-8")
+    make_symlink(remote_projects.projects_dir / "escape", outside, target_is_directory=True)
+
+    async with (
+        remote_server.session_manager.run(),
+        httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=_mounted(remote_server)),
+            base_url="http://localhost",
+            headers={"Authorization": "Bearer arc-valid"},
+            follow_redirects=True,
+        ) as client,
+        streamable_http_client("http://localhost/mcp", http_client=client) as (read, write, _),
+        ClientSession(read, write) as session,
+    ):
+        await session.initialize()
+        escape = await session.call_tool("get_workflow_plan", {"project": "escape", "episode_id": 1})
+        declared_escape = await session.call_tool(
+            "get_source_text", {"project": "escape", "path": "source/episode_1.txt"}
+        )
+
     assert escape.isError
-    for declared in (declared_missing, declared_escape):
-        assert declared.isError
-        assert declared.structuredContent is not None
-        assert declared.structuredContent["problem"]["code"] == "invalid_project"
+    assert declared_escape.isError
+    assert declared_escape.structuredContent is not None
+    assert declared_escape.structuredContent["problem"]["code"] == "invalid_project"
 
 
 async def test_remote_inspect_video_units_returns_contact_sheets_as_image_content(
@@ -1163,9 +1185,11 @@ async def test_remote_workflow_plan_names_migration_failures_by_project_relative
     assert str(project_dir) not in message
     assert str(project_dir.resolve()) not in message
     blocker = next(item for item in plan["blockers"] if item["code"] == MIGRATION_FAILURE_CODE)
-    expected = MIGRATION_FAILURE_FILENAME if origin == "unreadable_record" else "scripts/episode_1.json"
-    assert expected in blocker["reason"]
-    assert expected in json.dumps(plan["next_action"]["args"]["details"], ensure_ascii=False)
+    expected = MIGRATION_FAILURE_FILENAME if origin == "unreadable_record" else str(Path("scripts/episode_1.json"))
+    quoted_expected = repr(expected)[1:-1]
+    assert expected in blocker["reason"] or quoted_expected in blocker["reason"]
+    details = plan["next_action"]["args"]["details"]
+    assert any(expected in (item["file"] or "") or quoted_expected in item["violation"] for item in details)
 
 
 async def test_remote_mcp_host_initializes_first_request_and_can_restart() -> None:

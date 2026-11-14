@@ -469,8 +469,10 @@ class DeclarativeJobEngine[StateT: JobState]:
     def _asset(path: Path | None) -> AssetData | None:
         if path is None:
             return None
+        suffix = path.suffix.lower()
         mime = (
-            IMAGE_MIME_TYPES.get(path.suffix.lower())
+            IMAGE_MIME_TYPES.get(suffix)
+            or {".wav": "audio/x-wav"}.get(suffix)
             or mimetypes.guess_type(path.name)[0]
             or "application/octet-stream"
         )

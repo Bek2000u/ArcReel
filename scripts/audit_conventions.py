@@ -333,6 +333,8 @@ _ZIZMOR_DIRECTIVE = re.compile(r"#\s*zizmor:\s*ignore(?:\[[^\]]*\])?")
 def _suppression_files(root: Path) -> Iterator[Path]:
     for dirpath, dirnames, filenames in os.walk(root):
         dirnames[:] = sorted(d for d in dirnames if d not in SUPPRESSION_SKIP_DIRS)
+        if Path(dirpath) == root and "tmp" in dirnames:
+            dirnames.remove("tmp")
         for name in sorted(filenames):
             path = Path(dirpath) / name
             if path.suffix in PY_SUFFIXES | JS_SUFFIXES | YAML_SUFFIXES:

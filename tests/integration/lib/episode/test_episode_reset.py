@@ -31,6 +31,7 @@ from lib.episode.episode_reset import (
     reset_episode_planning,
 )
 from lib.episode.episode_sources import discover_sources, planning_start
+from tests.symlink_support import make_symlink
 
 # 全部用例跨 EpisodeReset / ProjectManager / EpisodePlanner 协作，用真实 tmp_path 文件系统，
 # 不 mock 被测模块的公共入口——按 docs/standards/testing.md 的分档规则归 integration。
@@ -405,7 +406,7 @@ def test_reset_rejects_symlinked_source_dir(tmp_path: Path) -> None:
     (outside / "episode_1.txt").write_text("外部文件", encoding="utf-8")
     source_dir = project_dir / "source"
     shutil.rmtree(source_dir)
-    source_dir.symlink_to(outside, target_is_directory=True)
+    make_symlink(source_dir, outside, target_is_directory=True)
     before = _load_project(project_dir)
 
     with pytest.raises(EpisodeResetError, match="符号链接"):
@@ -425,7 +426,7 @@ def test_reset_deletes_symlinked_episode_file_without_touching_target(tmp_path: 
     outside_target = tmp_path / "outside_episode_1.txt"
     outside_target.write_text("外部文件", encoding="utf-8")
     link = project_dir / "source" / "episode_1.txt"
-    link.symlink_to(outside_target)
+    make_symlink(link, outside_target)
 
     result = reset_episode_planning(project_dir)
 
@@ -443,7 +444,7 @@ def test_reset_clears_dangling_symlinked_episode_file(tmp_path: Path) -> None:
         episodes=[_entry(2, source_range=None)],
     )
     link = project_dir / "source" / "episode_2.txt"
-    link.symlink_to(project_dir / "source" / "does_not_exist.txt")
+    make_symlink(link, project_dir / "source" / "does_not_exist.txt")
 
     result = reset_episode_planning(project_dir)
 
@@ -539,7 +540,7 @@ def test_archive_path_increments_past_dangling_symlink_collision(tmp_path: Path)
         episodes=[_entry(2, source_range=None)],
     )
     stale_backup = project_dir / "source" / "_episode_2.txt.bak"
-    stale_backup.symlink_to(project_dir / "source" / "does_not_exist_either.txt")
+    make_symlink(stale_backup, project_dir / "source" / "does_not_exist_either.txt")
     legacy = project_dir / "source" / "episode_2.txt"
     legacy.write_text("这一次的内容", encoding="utf-8")
 
@@ -559,7 +560,7 @@ def test_discover_episode_files_prefers_readable_over_dangling_alias(tmp_path: P
     valid = project_dir / "source" / "episode_1.txt"
     valid.write_text(SOURCE[:10], encoding="utf-8")
     dangling = project_dir / "source" / "episode_01.txt"  # 排序早于 episode_1.txt
-    dangling.symlink_to(project_dir / "source" / "does_not_exist.txt")
+    make_symlink(dangling, project_dir / "source" / "does_not_exist.txt")
 
     assert discover_episode_files(project_dir)[1] == valid
 
@@ -570,7 +571,7 @@ def test_discover_episode_files_skips_episode_with_only_dangling_alias(tmp_path:
     凭空补建一个幽灵条目。"""
     project_dir = _write_project(tmp_path)
     dangling = project_dir / "source" / "episode_9.txt"
-    dangling.symlink_to(project_dir / "source" / "does_not_exist.txt")
+    make_symlink(dangling, project_dir / "source" / "does_not_exist.txt")
 
     assert 9 not in discover_episode_files(project_dir)
     assert discover_episode_file_aliases(project_dir)[9] == [dangling]
@@ -1347,7 +1348,7 @@ def test_a_failed_file_step_restores_symlinked_episode_entry_without_touching_ta
     outside = tmp_path / "outside.txt"
     outside.write_bytes(b"outside")
     derived = project_dir / "source" / "episode_1.txt"
-    derived.symlink_to(outside)
+    make_symlink(derived, outside)
     _write_script(project_dir, 1)
     adapter = ProjectArtifactManifestAdapter(project_dir)
     _write_claimed_artifact(

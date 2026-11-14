@@ -11,6 +11,7 @@ from typing import Any
 import pytest
 from definition_factories import comfyui_endpoint_definition, custom_endpoint_definition
 from PIL import Image
+from symlink_support import make_symlink
 
 from arcreel_market_core.market import INDEX_FILENAME, check_source
 
@@ -150,7 +151,7 @@ class TestIndexRule:
     def test_symlinked_index_is_not_followed(self, source: _Source, tmp_path_factory: pytest.TempPathFactory):
         outside = tmp_path_factory.mktemp("outside") / INDEX_FILENAME
         outside.write_text(json.dumps({"schema_version": "1.0.0", "name": "外部", "entries": []}), encoding="utf-8")
-        (source.root / INDEX_FILENAME).symlink_to(outside)
+        make_symlink(source.root / INDEX_FILENAME, outside)
 
         assert _codes(source.root) == [(INDEX_FILENAME, "$", "index_unreadable")]
 
@@ -191,7 +192,7 @@ class TestReferencedFilesRule:
         source.add("demo")
         target = source.root / "endpoints" / "demo" / "definition.json"
         target.unlink()
-        target.symlink_to(outside)
+        make_symlink(target, outside)
 
         assert _codes(source.write()) == [(INDEX_FILENAME, "entries[0].path", "symlink_not_allowed")]
 
@@ -199,7 +200,7 @@ class TestReferencedFilesRule:
         source.add("demo")
         target = source.root / "endpoints" / "demo" / "definition.json"
         target.unlink()
-        target.symlink_to(target)
+        make_symlink(target, target)
 
         assert _codes(source.write()) == [(INDEX_FILENAME, "entries[0].path", "symlink_not_allowed")]
 
@@ -209,7 +210,7 @@ class TestReferencedFilesRule:
         target = source.root / "endpoints" / "demo" / "definition.json"
         real = target.with_name("real.json")
         target.rename(real)
-        target.symlink_to("real.json")
+        make_symlink(target, "real.json")
 
         issues = check_source(source.write())
 
@@ -219,14 +220,14 @@ class TestReferencedFilesRule:
 
     def test_symlinked_icon_inside_the_source_is_rejected(self, source: _Source):
         source.add("demo", icon=("real.png", _png()))
-        (source.root / "endpoints" / "demo" / "icon.png").symlink_to("real.png")
+        make_symlink(source.root / "endpoints" / "demo" / "icon.png", "real.png")
         source.entries[0]["icon"] = "endpoints/demo/icon.png"
 
         assert _codes(source.write()) == [(INDEX_FILENAME, "entries[0].icon", "symlink_not_allowed")]
 
     def test_symlinked_entry_directory_is_rejected(self, source: _Source):
         source.add("real")
-        (source.root / "endpoints" / "demo").symlink_to("real", target_is_directory=True)
+        make_symlink(source.root / "endpoints" / "demo", "real", target_is_directory=True)
         source.entries[0] = _entry_for("demo", _definition())
 
         issues = check_source(source.write())

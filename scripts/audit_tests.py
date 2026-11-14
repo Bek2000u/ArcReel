@@ -1090,7 +1090,7 @@ class FileScanner:
     def __init__(self, path: Path, root: Path, tests_dir: Path, prod: ProductionIndex) -> None:
         self.path = path
         self.prod = prod
-        self.rel = str(path.relative_to(root))
+        self.rel = path.relative_to(root).as_posix()
         self.tree = ast.parse(path.read_text(encoding="utf-8"))
         self.aliases = AliasIndex(self.tree)
         self.collection = resolve_collection_scope(self.tree)

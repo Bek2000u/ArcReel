@@ -344,11 +344,16 @@ def _open_nofollow_posix(project_dir: Path, parts: tuple[str, ...]) -> int:
 def _open_checked(project_dir: Path, parts: tuple[str, ...]) -> int:
     """没有 ``dir_fd`` / ``O_NOFOLLOW`` 的平台：先逐段预检，打开后再比对文件身份。"""
     path = _resolve(project_dir, parts)
-    fd = os.open(path, os.O_RDONLY | getattr(os, "O_BINARY", 0))
-    opened, current = os.fstat(fd), os.lstat(path)
-    if (opened.st_dev, opened.st_ino) != (current.st_dev, current.st_ino):
-        os.close(fd)
+    if not path.is_file():
         raise FileNotFoundError("/".join(parts))
+    fd = os.open(path, os.O_RDONLY | getattr(os, "O_BINARY", 0))
+    try:
+        opened, current = os.fstat(fd), os.lstat(path)
+        if (opened.st_dev, opened.st_ino) != (current.st_dev, current.st_ino):
+            raise FileNotFoundError("/".join(parts))
+    except BaseException:
+        os.close(fd)
+        raise
     return fd
 
 

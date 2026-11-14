@@ -276,7 +276,7 @@ class TestReport:
         """处置指引要写「改哪个文件的哪个字段、改完调什么」——Agent 不知道产物还在盘上就会重抽。"""
         path = quarantine_path(tmp_path, 2, QUARANTINE_KIND_SCRIPT_PLAN)
         text = render_report(path, QUARANTINE_KIND_SCRIPT_PLAN, [_violation()], episode=2)
-        assert str(path) in text
+        assert path.as_posix() in text
         assert "按报告字段路径修复" in text
         assert "content.units[i]" in text
         assert 'promote_draft({"episode_id": 2, "doc_type": "reference_script_plan", "base_revision":' in text

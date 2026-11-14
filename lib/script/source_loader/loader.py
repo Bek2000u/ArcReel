@@ -148,7 +148,7 @@ class SourceLoader:
         normalized_path = safe_join(dst_dir, f"{target_stem}.txt")
         normalized_path.parent.mkdir(parents=True, exist_ok=True)
 
-        normalized_path.write_text(extracted.text, encoding="utf-8")
+        normalized_path.write_text(extracted.text, encoding="utf-8", newline="\n")
 
         try:
             raw_path = cls._maybe_backup_raw(

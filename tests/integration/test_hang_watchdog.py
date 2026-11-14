@@ -109,7 +109,9 @@ def test_records_test_and_stack_when_process_calls_os_exit(tmp_path: Path) -> No
     )
 
     assert result.returncode == 9
-    assert _single(dump_dir, "progress").splitlines()[-1].endswith("run test_probe.py::test_killed")
+    progress = _single(dump_dir, "progress").splitlines()[-1]
+    assert " run " in progress
+    assert progress.endswith("test_probe.py::test_killed")
     stacks = _single(dump_dir, "stacks")
     assert "调用 os._exit(9)" in stacks
     assert "test_killed" in stacks

@@ -10,6 +10,7 @@ from pathlib import Path
 import pytest
 
 from lib.project.project_migrations.v5_to_v6_asset_namespace import migrate_v5_to_v6
+from tests.symlink_support import make_symlink
 
 
 def _write_json(path: Path, payload: object) -> None:
@@ -464,7 +465,7 @@ def test_migration_preserves_broken_symlinks(tmp_path: Path) -> None:
     )
     link = project_dir / "CLAUDE.md"
     try:
-        link.symlink_to("missing-runtime-profile.md")
+        make_symlink(link, "missing-runtime-profile.md")
     except OSError as exc:
         pytest.skip(f"当前平台不允许创建符号链接: {exc}")
 
@@ -492,7 +493,7 @@ def test_migration_rejects_symlinked_asset_directory_without_touching_target(tmp
     external_sheet.write_bytes(b"external-scene")
     scenes_link = project_dir / "scenes"
     try:
-        scenes_link.symlink_to(outside, target_is_directory=True)
+        make_symlink(scenes_link, outside, target_is_directory=True)
     except OSError as exc:
         pytest.skip(f"当前平台不允许创建目录符号链接: {exc}")
     original_project = (project_dir / "project.json").read_bytes()
@@ -526,7 +527,7 @@ def test_migration_rejects_symlinked_non_asset_write_roots(tmp_path: Path, write
     marker.write_text("external", encoding="utf-8")
     link = project_dir / write_root
     try:
-        link.symlink_to(outside, target_is_directory=True)
+        make_symlink(link, outside, target_is_directory=True)
     except OSError as exc:
         pytest.skip(f"当前平台不允许创建目录符号链接: {exc}")
     original_project = (project_dir / "project.json").read_bytes()
@@ -557,7 +558,7 @@ def test_migration_rejects_symlinked_draft_write_target(tmp_path: Path) -> None:
     draft = project_dir / "drafts" / "episode_1" / "step1_normalized_script.md"
     draft.parent.mkdir(parents=True)
     try:
-        draft.symlink_to(outside)
+        make_symlink(draft, outside)
     except OSError as exc:
         pytest.skip(f"当前平台不允许创建符号链接: {exc}")
     original_project = (project_dir / "project.json").read_bytes()

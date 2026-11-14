@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 from lib.project.source_revision import SourceScope, compute_source_revision
+from tests.symlink_support import make_symlink
 
 
 def _project(*whole_source: str, own: tuple[int, ...] = (), cut: tuple[int, ...] = ()) -> dict[str, object]:
@@ -164,7 +165,7 @@ def test_scoped_revision_rejects_escape_symlink_and_invalid_scope(tmp_path: Path
     source.mkdir()
     outside = tmp_path.parent / f"{tmp_path.name}-outside.txt"
     outside.write_text("outside", encoding="utf-8")
-    (source / "linked.txt").symlink_to(outside)
+    make_symlink(source / "linked.txt", outside)
     try:
         escape = compute_source_revision(
             tmp_path,
@@ -212,7 +213,7 @@ def test_all_scope_reports_candidate_symlink_instead_of_skipping_it(tmp_path: Pa
     source.mkdir()
     target = tmp_path / "target.txt"
     target.write_text("outside source", encoding="utf-8")
-    (source / "novel.txt").symlink_to(target)
+    make_symlink(source / "novel.txt", target)
 
     result = compute_source_revision(tmp_path, _project("novel.txt"), SourceScope(kind="all"))
 
@@ -226,7 +227,7 @@ def test_all_scope_reports_symlinked_source_dir(tmp_path: Path) -> None:
     (outside / "novel.txt").write_text("outside source", encoding="utf-8")
     project = tmp_path / "demo"
     project.mkdir()
-    (project / "source").symlink_to(outside, target_is_directory=True)
+    make_symlink(project / "source", outside, target_is_directory=True)
 
     result = compute_source_revision(project, _project(), SourceScope(kind="all"))
 
@@ -241,7 +242,7 @@ def test_all_scope_reports_registered_symlink_beside_own_source_episode_files(tm
     (source / "episode_1.txt").write_text("第一集", encoding="utf-8")
     target = tmp_path / "target.md"
     target.write_text("outside source", encoding="utf-8")
-    (source / "linked.md").symlink_to(target)
+    make_symlink(source / "linked.md", target)
 
     result = compute_source_revision(tmp_path, _project("linked.md", own=(1,)), SourceScope(kind="all"))
 
@@ -255,7 +256,7 @@ def test_all_scope_ignores_unregistered_symlink(tmp_path: Path) -> None:
     (source / "episode_1.txt").write_text("第一集", encoding="utf-8")
     target = tmp_path / "target.md"
     target.write_text("outside source", encoding="utf-8")
-    (source / "linked.md").symlink_to(target)
+    make_symlink(source / "linked.md", target)
 
     result = compute_source_revision(tmp_path, _project(own=(1,)), SourceScope(kind="all"))
 

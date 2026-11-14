@@ -8,6 +8,7 @@ from uuid import uuid4
 
 from lib.infra.async_thread import run_sync_transaction
 from lib.infra.ffmpeg import FfmpegUnavailableError, ffmpeg_executable, local_file_input
+from lib.infra.file_io import retry_windows_file_access
 from lib.infra.media_probe import MediaProbeError, probe_media
 from lib.infra.subprocess_deadline import (
     DEFAULT_TERMINATE_GRACE_SECONDS,
@@ -191,7 +192,7 @@ def _promote_temp_output(succeeded: bool, temp_path: Path, output_path: Path) ->
     try:
         if not succeeded or not temp_path.exists() or temp_path.stat().st_size < 1:
             return False
-        temp_path.replace(output_path)
+        retry_windows_file_access(lambda: temp_path.replace(output_path))
         return True
     finally:
         temp_path.unlink(missing_ok=True)  # hard-delete: temp -- ffmpeg 临时输出

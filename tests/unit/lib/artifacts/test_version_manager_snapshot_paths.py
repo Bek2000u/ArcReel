@@ -5,6 +5,7 @@ import pytest
 
 from lib.artifacts.version_manager import UnmanagedSnapshotPathError, VersionManager
 from lib.infra.api_errors import BadRequestError
+from tests.symlink_support import make_symlink
 
 _UNMANAGED_FILES = [
     "../outside/Hero_v1_20260101T000000.png",
@@ -64,7 +65,7 @@ class TestResolveSnapshotPath:
         project = _project(tmp_path)
         sentinel = _sentinel(tmp_path)
         (project / "versions").mkdir()
-        (project / "versions" / "characters").symlink_to(sentinel.parent, target_is_directory=True)
+        make_symlink(project / "versions" / "characters", sentinel.parent, target_is_directory=True)
 
         with pytest.raises(UnmanagedSnapshotPathError):
             VersionManager.resolve_snapshot_path(project, "characters", f"versions/characters/{sentinel.name}")
@@ -170,7 +171,7 @@ class TestSnapshotSinksActOnTheRecordedPath:
         rel = "versions/characters/Hero_v1_20260101T000000.png"
         link = project / rel
         link.parent.mkdir(parents=True)
-        link.symlink_to(project / "project.json")
+        make_symlink(link, project / "project.json")
         _write_history(project, "characters", "Hero", [{"version": 1, "file": rel}], current=1)
         return VersionManager(project), link
 

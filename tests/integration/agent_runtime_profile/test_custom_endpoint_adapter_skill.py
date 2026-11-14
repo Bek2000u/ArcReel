@@ -161,7 +161,7 @@ def test_cli_requires_persistent_settings_outside_embedded_agent(tmp_path: Path)
     )
 
     assert result.returncode != 0
-    assert ".arcreel/settings.json" in result.stderr
+    assert ".arcreel/settings.json" in result.stderr.replace("\\", "/")
     assert "Traceback" not in result.stderr
 
 
@@ -235,7 +235,7 @@ def test_cli_rejects_unsafe_connection_before_request(
 
     assert result.returncode != 0
     assert error in result.stderr
-    assert expected_source in result.stderr
+    assert expected_source in result.stderr.replace("\\", "/")
     assert "Traceback" not in result.stderr
 
 

@@ -479,7 +479,7 @@ def test_a_verdict_that_cannot_be_persisted_fails_loud(tmp_path: Path) -> None:
     # 记录位置被一个目录占住：落盘那一步必然失败，且不依赖平台的权限语义。
     (project_dir / MIGRATION_FAILURE_FILENAME).mkdir()
 
-    with pytest.raises(IsADirectoryError, match=r"Is a directory"):
+    with pytest.raises((IsADirectoryError, PermissionError)):
         migrate_project_with_verdict(project_dir)
 
     # 启动期一个项目写不下裁决，不拖垮同一轮里其它项目：healthy 排在 demo 之后，

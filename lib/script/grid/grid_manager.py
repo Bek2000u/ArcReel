@@ -127,7 +127,7 @@ class GridManager:
     def _record_lock(path: Path):
         lock_path = path.parent / f".{path.name}.lock"
         lock_path.touch(exist_ok=True)
-        with portalocker.Lock(lock_path, flags=portalocker.LOCK_EX):
+        with portalocker.Lock(lock_path, timeout=30, check_interval=0.02):
             yield
 
     def move_to_trash(self, grid_id: str) -> bool:

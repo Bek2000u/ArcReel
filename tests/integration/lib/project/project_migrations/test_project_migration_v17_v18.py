@@ -42,6 +42,7 @@ from tests.legacy_project_shapes import (
     write_legacy_unregistrable_asset_sheet_project,
     write_undescribed_style_bases_project,
 )
+from tests.symlink_support import make_symlink
 
 
 def _read_json(path: Path) -> Any:
@@ -156,9 +157,9 @@ def test_symlinked_timeline_directories_outside_project_are_left_untouched(tmp_p
     external_dir = tmp_path / "external-timelines"
     episode_dir.rename(external_dir)
     try:
-        episode_dir.symlink_to(external_dir, target_is_directory=True)
+        make_symlink(episode_dir, external_dir, target_is_directory=True)
         (project_dir / "edit_timelines" / "episode_2").mkdir()
-        (project_dir / "edit_timelines" / "episode_2" / "tl-linked.json").symlink_to(external_dir / "tl-0000abcd.json")
+        make_symlink(project_dir / "edit_timelines" / "episode_2" / "tl-linked.json", external_dir / "tl-0000abcd.json")
     except (NotImplementedError, OSError):
         pytest.skip("symlinks are unavailable on this platform")
     external_file = external_dir / "tl-0000abcd.json"

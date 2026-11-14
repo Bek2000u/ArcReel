@@ -92,6 +92,8 @@ def _db_url() -> str:
             ]
             query = urlencode(masked)
 
+        if netloc == parsed.netloc and query == parsed.query:
+            return raw
         return urlunparse(parsed._replace(netloc=netloc, query=query))
     except Exception:
         # 脱敏失败时回退到原始字符串，避免诊断包完全失败；调用方 _safe 会再兜一层。

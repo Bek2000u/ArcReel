@@ -15,6 +15,7 @@ from lib.agent.agent_memory_store import (
 from lib.infra.api_errors import BadRequestError, NotFoundError
 from lib.project import project_trash
 from lib.project.project_activity import ACTIVITY_FILENAME, recorded_project_activity
+from tests.symlink_support import make_symlink
 
 
 @pytest.fixture
@@ -175,7 +176,7 @@ class TestOverview:
         outside = tmp_path / "outside.md"
         outside.write_text("secret", encoding="utf-8")
         store.directory.mkdir(parents=True)
-        (store.directory / "leak.md").symlink_to(outside)
+        make_symlink(store.directory / "leak.md", outside)
 
         assert store.overview()["files"] == []
 
@@ -376,7 +377,7 @@ class TestProjectMemoryTrash:
         project_store.clear()
 
         [record] = project_trash.list_records(tmp_path)
-        assert record.files == (".arcreel/memory/MEMORY.md", ".arcreel/memory/a.md")
+        assert set(record.files) == {".arcreel/memory/MEMORY.md", ".arcreel/memory/a.md"}
         assert project_store.overview()["files"] == []
         project_trash.restore(tmp_path, record.id)
 

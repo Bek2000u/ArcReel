@@ -23,6 +23,7 @@ from server.routers import file_view
 from server.routers import project_trash as trash_router
 from tests.auth_deps import AUTH_DEPENDENCIES, override_auth
 from tests.fakes import use_project_manager
+from tests.symlink_support import make_symlink
 
 FILES = "/api/v1/projects/demo/file-view"
 TRASH = "/api/v1/projects/demo/trash"
@@ -236,7 +237,7 @@ def test_a_multi_file_record_is_restored_whole_or_not_at_all(trash_client, trash
     # 删除之后途经目录被换成符号链接：第二个文件无处可落
     (tmp_path / "outside").mkdir()
     (trash_project_dir / "extras").rmdir()
-    (trash_project_dir / "extras").symlink_to(tmp_path / "outside")
+    make_symlink(trash_project_dir / "extras", tmp_path / "outside")
 
     blocked = trash_client.post(f"{TRASH}/{record.id}/restore")
 

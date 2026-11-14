@@ -102,7 +102,7 @@ def test_main_per_file_lists_only_files_at_or_above_min_skip_sorted_by_ratio(
 
     out = capsys.readouterr().out
     assert code == 0
-    listed = [line.split()[0] for line in out.splitlines() if line.startswith(str(root))]
+    listed = [line.split()[0] for line in out.splitlines() if line.startswith(root.as_posix())]
     assert listed == [(root / "all.py").as_posix(), (root / "half.py").as_posix()]
     assert "100.0%" in out
     assert " 60.0%" in out

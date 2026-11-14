@@ -32,10 +32,11 @@ def test_recorded_verdict_names_the_offending_file_relative_to_the_project(tmp_p
 
     persisted = json.loads(migration_failure_path(project_dir).read_text(encoding="utf-8"))
     assert persisted == record.model_dump(mode="json")
-    assert record.reason == "cannot parse scripts/episode_1.json"
+    relative = str(script.relative_to(project_dir))
+    assert record.reason == f"cannot parse {relative}"
     [detail] = record.details
-    assert detail.file == "scripts/episode_1.json"
-    assert detail.violation == "cannot parse scripts/episode_1.json"
+    assert detail.file == relative
+    assert detail.violation == f"cannot parse {relative}"
     assert (project_dir / detail.file).is_file()
 
 
@@ -57,7 +58,8 @@ def test_legacy_verdict_with_absolute_paths_is_read_project_relative(tmp_path: P
     record = load_migration_failure(project_dir)
 
     assert record is not None
-    expected = f"cannot read scripts/episode_1.json; sibling {project_dir}-2/project.json untouched"
+    relative = str(script.relative_to(project_dir))
+    expected = f"cannot read {relative}; sibling {project_dir}-2/project.json untouched"
     assert record.reason == expected
-    assert record.details[0].file == "scripts/episode_1.json"
+    assert record.details[0].file == relative
     assert record.details[0].violation == expected

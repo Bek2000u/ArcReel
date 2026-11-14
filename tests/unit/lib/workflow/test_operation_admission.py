@@ -21,6 +21,7 @@ from lib.workflow.operation_admission import (
     pending_authoring_entry_ids,
     whole_source_present,
 )
+from tests.symlink_support import make_symlink
 
 
 def _conclusion(admission: OperationAdmission) -> tuple[str, str | None]:
@@ -50,7 +51,7 @@ def test_episode_source_is_a_non_blank_regular_file(tmp_path: Path, origin: str)
     assert episode_source_present(tmp_path, 1, entry) is False
     (source / "episode_1.txt").write_text("原文", encoding="utf-8")
     assert episode_source_present(tmp_path, 1, entry) is True
-    (source / "episode_2.txt").symlink_to(source / "episode_1.txt")
+    make_symlink(source / "episode_2.txt", source / "episode_1.txt")
     assert episode_source_present(tmp_path, 2, {"episode": 2, "source_origin": origin}) is False
 
 

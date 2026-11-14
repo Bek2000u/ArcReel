@@ -18,8 +18,10 @@ from __future__ import annotations
 import argparse
 import fnmatch
 import os
+import shutil
 import subprocess
 import sys
+import tempfile
 import time
 from collections.abc import Iterable
 from dataclasses import dataclass
@@ -43,6 +45,7 @@ class Step:
 
 
 UV = ("uv", "run")
+BACKEND_PYTEST = (*UV, "python", "-m", "pytest", "-n", "4", "--dist", "loadfile", "--max-worker-restart=0")
 # 域名 → 步骤。`-n 4 --dist loadfile` 的取值理由见 pyproject.toml 的 pytest 配置注释，
 # `--max-worker-restart=0` 的理由见 .github/workflows/test.yml 的后端测试步骤。
 DOMAINS: dict[str, tuple[Step, ...]] = {
@@ -52,7 +55,7 @@ DOMAINS: dict[str, tuple[Step, ...]] = {
         Step((*UV, "basedpyright", "--warnings")),
         Step((*UV, "lint-imports")),
         Step((*UV, "deptry", "lib", "server", "alembic", "scripts", "tests")),
-        Step((*UV, "python", "-m", "pytest", "-n", "4", "--dist", "loadfile", "--max-worker-restart=0")),
+        Step(BACKEND_PYTEST),
     ),
     "market-core": (
         Step((*UV, "deptry", "src", "tests"), ROOT / "packages" / "arcreel-market-core"),
@@ -186,7 +189,18 @@ def _acquire_gate_lock() -> portalocker.Lock:
 def _run(step: Step) -> int:
     started = time.monotonic()
     print(f"\n$ {step.describe()}", flush=True)
-    code = subprocess.run(step.argv, cwd=step.cwd, check=False).returncode
+    executable = shutil.which(step.argv[0]) or step.argv[0]
+    argv = (executable, *step.argv[1:])
+    env = None
+    if os.name == "nt" and step.argv == BACKEND_PYTEST:
+        # Nested project fixtures and ffmpeg output can reach Windows' path limit.
+        # Let pytest manage its own short, isolated directory inside the checkout.
+        tmp_root = ROOT / "tmp"
+        tmp_root.mkdir(exist_ok=True)
+        workspace = Path(tempfile.mkdtemp(prefix="g", dir=tmp_root))
+        env = {**os.environ, "TMP": str(workspace), "TEMP": str(workspace)}
+        argv = (*argv, f"--basetemp={workspace / 'p'}")
+    code = subprocess.run(argv, cwd=step.cwd, env=env, check=False).returncode
     print(f"[gate] {'ok' if code == 0 else f'exit {code}'} in {time.monotonic() - started:.0f}s", flush=True)
     return code
 

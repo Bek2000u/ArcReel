@@ -57,6 +57,7 @@ from server.services.project.project_archive import (
 )
 from tests.factories import wav_bytes
 from tests.legacy_project_shapes import write_legacy_named_reference_bases_project
+from tests.symlink_support import make_symlink
 
 
 class _RetireRecorder:
@@ -219,8 +220,8 @@ def _add_agent_runtime_symlinks(project_dir: Path) -> None:
     if manifest_path.exists() or manifest_path.is_symlink():
         manifest_path.unlink()
 
-    (project_dir / ".claude").symlink_to(Path("../../agent_runtime_profile/.claude"))
-    (project_dir / "CLAUDE.md").symlink_to(Path("../../agent_runtime_profile/CLAUDE.md"))
+    make_symlink(project_dir / ".claude", Path("../../agent_runtime_profile/.claude"))
+    make_symlink(project_dir / "CLAUDE.md", Path("../../agent_runtime_profile/CLAUDE.md"))
 
 
 def _make_manual_zip(project_dir: Path, zip_path: Path) -> None:
@@ -470,8 +471,8 @@ class TestProjectArchiveService:
             _shutil.rmtree(project_dir / ".claude")
         if (project_dir / "CLAUDE.md").exists():
             (project_dir / "CLAUDE.md").unlink()
-        (project_dir / ".claude").symlink_to(Path("../../nonexistent_profile/.claude"))
-        (project_dir / "CLAUDE.md").symlink_to(Path("../../nonexistent_profile/CLAUDE.md"))
+        make_symlink(project_dir / ".claude", Path("../../nonexistent_profile/.claude"))
+        make_symlink(project_dir / "CLAUDE.md", Path("../../nonexistent_profile/CLAUDE.md"))
 
         assert (project_dir / ".claude").is_symlink()
         assert not (project_dir / ".claude").exists()

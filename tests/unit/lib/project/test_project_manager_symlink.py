@@ -23,6 +23,7 @@ from lib.agent.profile_manifest import (
     ProfileMissingError,
 )
 from lib.project.project_manager import ProjectManager
+from tests.symlink_support import make_symlink
 
 # ---------- 公共 fixtures ----------
 
@@ -455,7 +456,7 @@ class TestForceResync:
         outside = project_dir.parent.parent / "outside_secret.md"
         outside.write_text("MUST NOT be touched")
         escape_link = project_dir / ".claude" / "evil_link.md"
-        escape_link.symlink_to(outside)
+        make_symlink(escape_link, outside)
 
         # manifest 删一遍触发首次迁移分支也会跑校验？_full_reset 不走 escape guard
         # 路径（它走全量 copy 不会撞已存在 dest）。所以这里走主物化路径：
@@ -492,7 +493,7 @@ class TestForceResync:
         outside = project_dir.parent.parent / "outside_lock_target.txt"
         outside.write_text("MUST NOT be truncated")
         lock_link = project_dir / ".profile_sync.lock"
-        lock_link.symlink_to(outside)
+        make_symlink(lock_link, outside)
 
         with pytest.raises(ValueError, match="lock path is a symlink"):
             pm.sync_agent_profile(project_dir)
@@ -522,7 +523,7 @@ class TestForceResync:
         outside = project_dir.parent.parent / "outside_lock_target_win.txt"
         outside.write_text("MUST NOT be truncated")
         lock_link = project_dir / ".profile_sync.lock"
-        lock_link.symlink_to(outside)
+        make_symlink(lock_link, outside)
 
         with pytest.raises(ValueError, match="lock path is a symlink"):
             pm.sync_agent_profile(project_dir)
@@ -548,7 +549,7 @@ class TestForceResync:
         project = tmp_path / "proj"
         project.mkdir()
         evil_tmp = project / (MANIFEST_FILENAME + ".tmp")
-        evil_tmp.symlink_to(outside)
+        make_symlink(evil_tmp, outside)
 
         manifest = Manifest(
             schema_version=MANIFEST_SCHEMA_VERSION,
@@ -572,7 +573,7 @@ class TestForceResync:
         outside.write_text('{"schema_version": 1, "profile_id": "evil/source", "entries": {}}')
         project = tmp_path / "proj"
         project.mkdir()
-        (project / MANIFEST_FILENAME).symlink_to(outside)
+        make_symlink(project / MANIFEST_FILENAME, outside)
 
         assert load_manifest(project) is None
         # symlink 没被自动删（决策应由后续 _full_reset 通过 mkstemp + os.replace 处理）
@@ -609,7 +610,7 @@ class TestForceResync:
         src = tmp_path / "src.md"
         src.write_text("new content")
         dest = tmp_path / "dest.md"
-        dest.symlink_to(outside)
+        make_symlink(dest, outside)
 
         _safe_copy(src, dest)
 
@@ -766,8 +767,8 @@ class TestLegacySymlinkMigration:
     def test_legacy_symlink_replaced_with_materialized_dir(self, env):
         """老版本部署遗留的 symlink → 首次 repair 拆除升级为物化。"""
         pm, profile_dir, project_dir = env
-        (project_dir / ".claude").symlink_to(profile_dir / ".claude")
-        (project_dir / "CLAUDE.md").symlink_to(profile_dir / "CLAUDE.md")
+        make_symlink(project_dir / ".claude", profile_dir / ".claude")
+        make_symlink(project_dir / "CLAUDE.md", profile_dir / "CLAUDE.md")
 
         pm.sync_agent_profile(project_dir)
 

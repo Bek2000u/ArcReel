@@ -13,6 +13,7 @@ import re
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
+from datetime import timedelta
 from typing import Any
 
 import httpx
@@ -772,7 +773,9 @@ class TestSettleInterruptedCalls:
         second = await self._seed_pending(db_factory, project_name="demo")
         other = await self._seed_pending(db_factory, project_name="other")
 
-        assert await ledger.settle_interrupted_calls(taskless_started_before=utc_now()) == 3
+        # On Windows, successive clock reads can still report the same tick.
+        cutoff = utc_now() + timedelta(seconds=1)
+        assert await ledger.settle_interrupted_calls(taskless_started_before=cutoff) == 3
 
         async with db_factory() as session:
             rows = {row.id: row for row in (await session.execute(select(ApiCall))).scalars().all()}
