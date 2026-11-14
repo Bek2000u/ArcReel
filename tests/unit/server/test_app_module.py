@@ -184,7 +184,10 @@ class TestMainEntry:
         assert target is app_module.app
         assert options["reload"] is False
         assert "reload_dirs" not in options
-        assert not uvicorn.Config(target, **options).use_subprocess
+        config = uvicorn.Config(target, **options)
+        assert not config.use_subprocess
+        assert config.get_loop_factory() is not None
+        assert options["loop"] == "server.windows_agent_loop:create_windows_agent_loop"
 
 
 @pytest.mark.asyncio

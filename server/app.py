@@ -10,10 +10,10 @@ node_modules / .venv / .git / .worktrees 等十几万个文件，单核 CPU 50%+
 
 Windows 原生环境不要加 --reload：uvicorn 启用 reload 时在 Windows 上改用
 SelectorEventLoop，它不支持子进程，内置 Agent 无法拉起 Claude Code。改用：
-    uv run uvicorn server.app:app --port 1241
+    uv run python -m server.app
 
-也可以 ``uv run python -m server.app``：监听地址取 LISTEN_HOST / LISTEN_PORT，
-Windows 上自动不开 reload，其他平台开启 reload 并只监视 server 与 lib。
+模块入口的监听地址取 LISTEN_HOST / LISTEN_PORT；
+Windows 上关闭 reload 并隐藏 Claude CLI 控制台，其他平台开启 reload 并只监视 server 与 lib。
 """
 
 import asyncio
@@ -1013,7 +1013,12 @@ def _main_uvicorn_args(platform_name: str = sys.platform) -> tuple[str | FastAPI
     """
     host, port = _resolve_listen_addr()
     if platform_name == "win32":
-        return app, {"host": host, "port": port, "reload": False}
+        return app, {
+            "host": host,
+            "port": port,
+            "reload": False,
+            "loop": "server.windows_agent_loop:create_windows_agent_loop",
+        }
     return "server.app:app", {"host": host, "port": port, "reload": True, "reload_dirs": ["server", "lib"]}
 
 
