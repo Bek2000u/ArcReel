@@ -478,6 +478,40 @@ async def test_patch_episode_meta_returns_typed_domain_outcome(tmp_path: Path, m
     assert all(thread != caller_thread for thread in mutation_threads)
 
 
+async def test_episode_script_pages_keep_the_full_script_revision(tmp_path: Path) -> None:
+    project_dir = tmp_path / "projects" / "demo"
+    (project_dir / "scripts").mkdir(parents=True)
+    (project_dir / "project.json").write_text(
+        f'{{"content_mode":"drama","schema_version":{CURRENT_PROJECT_SCHEMA_VERSION}}}', encoding="utf-8"
+    )
+    (project_dir / "scripts" / "episode_1.json").write_text(
+        '{"episode":1,"scenes":[{"scene_id":"E1S01"},{"scene_id":"E1S02"},{"scene_id":"E1S03"}]}',
+        encoding="utf-8",
+    )
+    services = Services(
+        projects=ProjectManager(tmp_path), workflow_planner=_Planner(_status()), capabilities=_Capabilities()
+    )
+    scope = ProjectScope("demo", tmp_path)
+    caller = CallerContext(user_id="u1", source="mcp")
+    full = await get_episode_script(ToolRequest(EpisodeScriptRequest(script="episode_1.json")), scope, caller, services)
+    first = await get_episode_script(
+        ToolRequest(EpisodeScriptRequest(script="episode_1.json", limit=2)), scope, caller, services
+    )
+    second = await get_episode_script(
+        ToolRequest(EpisodeScriptRequest(script="episode_1.json", limit=2, offset=2)), scope, caller, services
+    )
+
+    assert full.value is not None
+    assert first.value is not None
+    assert second.value is not None
+    assert first.value.revision == second.value.revision == full.value.revision
+    assert first.value.script["scenes"] + second.value.script["scenes"] == full.value.script["scenes"]
+    assert first.value.next_offset == 2
+    assert second.value.next_offset is None
+    assert first.value.total_items == second.value.total_items == 3
+
+
+@pytest.mark.asyncio
 async def test_content_readers_return_body_and_revision_from_the_same_snapshot(tmp_path: Path, monkeypatch) -> None:
     project_dir = tmp_path / "projects" / "demo"
     (project_dir / "scripts").mkdir(parents=True)

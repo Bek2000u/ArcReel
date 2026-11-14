@@ -1082,6 +1082,8 @@ class EpisodeScriptRequest(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     script: str = Field(description="剧本纯文件名（不含目录），如 episode_1.json")
+    offset: int | None = Field(default=None, ge=0, description="分镜分页起点，从 0 开始。")
+    limit: int | None = Field(default=None, ge=1, le=5, description="本页分镜数量。大剧本建议先传 3。")
 
 
 class ScriptPlanContentRequest(BaseModel):
@@ -1107,6 +1109,8 @@ class EpisodeScriptContent(BaseModel):
     revision: str
     script_filename: str
     script: dict[str, Any]
+    next_offset: int | None = Field(default=None, exclude_if=lambda value: value is None)
+    total_items: int | None = Field(default=None, exclude_if=lambda value: value is None)
 
 
 class ProjectFileEntry(BaseModel):
@@ -1329,15 +1333,29 @@ async def get_episode_script(
         if failure is not None:
             return ToolOutcome(problem=_migration_tool_problem(failure))
         script = await asyncio.to_thread(services.projects.load_script_readonly, scope.project_name, filename)
+        revision = await asyncio.to_thread(script_revision, script)
+        offset = request.value.offset
+        limit = request.value.limit
+        if offset is not None or limit is not None:
+            items, _, kind = resolve_items(script)
+            start = offset or 0
+            stop = start + (limit or 3)
+            return ToolOutcome(
+                value=EpisodeScriptContent(
+                    revision=revision,
+                    script_filename=filename,
+                    script={kind: items[start:stop]},
+                    next_offset=stop if stop < len(items) else None,
+                    total_items=len(items),
+                )
+            )
     except FileNotFoundError as exc:
         return ToolOutcome(problem=ToolProblem("file_not_found", str(exc)))
     except (TypeError, ValueError) as exc:
         return ToolOutcome(problem=ToolProblem("invalid_request", str(exc)))
     except Exception as exc:
         return ToolOutcome(problem=ToolProblem("internal_error", f"get_episode_script 失败: {exc}"))
-    return ToolOutcome(
-        value=EpisodeScriptContent(revision=script_revision(script), script_filename=filename, script=script)
-    )
+    return ToolOutcome(value=EpisodeScriptContent(revision=revision, script_filename=filename, script=script))
 
 
 class PromptPreviewRequest(BaseModel):

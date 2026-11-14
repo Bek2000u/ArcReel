@@ -60,7 +60,9 @@ GET_SOURCE_TEXT = ToolDeclaration(
 GET_EPISODE_SCRIPT = ToolDeclaration(
     name="get_episode_script",
     description=(
-        "读取一集剧本的 JSON 正文及其 canonical revision。把返回的 revision 原样作为 "
+        "读取一集剧本的 JSON 正文及其 canonical revision。长剧本先传 limit=3，以 next_offset 继续分页，"
+        "直到没有 next_offset；如结果仍过大则改用 limit=1。分页只返回所选分镜数组、总数和整份剧本的 revision。"
+        "若不同页的 revision 不同，重新读取所需分镜。把返回的 revision 原样作为 "
         "patch_episode_script 的 base_revision；剧本被改动后 revision 随之变化，须重新读取。只读，无副作用。"
         "项目数据升级失败时不签发 revision，返回 project_migration_failed problem；按其明细修复后调用 "
         "retry_project_migration。"
